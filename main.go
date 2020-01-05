@@ -31,5 +31,16 @@ func main() {
 	mysql.Init()
 	redis.Init()
 	const addr = ":8080"
+
+	go func() {
+		for {
+			err := redis.HeartBeat()
+			if err != nil {
+				fmt.Println(err)
+			}
+			time.Sleep(time.Second * 5)
+		}
+	}()
+
 	initRpcServer(addr)
 }

@@ -2,11 +2,20 @@ package handler
 
 import (
 	"context"
-	"fmt"
+	"poseidon/infra/mysql"
+	"poseidon/infra/redis"
 	"poseidon/thrift"
+	"time"
 )
 
-func HeartBeat(ctx context.Context, req *thrift.HeartBeatReq) (resp *thrift.HeartBeatResp, err error) {
-	fmt.Printf("%+v\n", req)
+func HeartBeat(ctx context.Context, req *thrift.HeartBeatReq) (*thrift.HeartBeatResp, error) {
+	err := mysql.UpdateLastOnlineTime(req.UserId, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	err = redis.AddUser(req.UserId)
+	if err != nil {
+		return nil, err
+	}
 	return &thrift.HeartBeatResp{}, nil
 }

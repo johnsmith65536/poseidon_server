@@ -21,3 +21,9 @@ func Login(userId int64, password string) (bool, error) {
 		return false, nil
 	}
 }
+
+func UpdateLastOnlineTime(userId int64, time time.Time) error {
+	return db.Model(&entity.User{}).Where("id = ?", userId).Update(map[string]interface{}{
+		"last_online_time": time,
+	}).Error
+}

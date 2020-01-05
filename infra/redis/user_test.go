@@ -2,7 +2,7 @@ package redis
 
 import "testing"
 
-func TestGetOnlineUsers(t *testing.T) {
+func TestGetUsers(t *testing.T) {
 	Init()
 	userIds, err := GetUsers()
 	if err != nil {
@@ -11,9 +11,17 @@ func TestGetOnlineUsers(t *testing.T) {
 	t.Log(userIds)
 }
 
-func TestKickAllOnlineUser(t *testing.T) {
+//func TestKickAllUser(t *testing.T) {
+//	Init()
+//	err := KickAllUser()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//}
+
+func TestAddUser(t *testing.T) {
 	Init()
-	err := KickAllUser()
+	err := AddUser(1)
 	if err != nil {
 		t.Fatal(err)
 	}
