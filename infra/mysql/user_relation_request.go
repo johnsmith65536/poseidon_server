@@ -41,7 +41,7 @@ func RejectedAddFriend(id int64) error {
 
 func FetchOfflineUserRelation(userId, userRelationId int64) ([]*thrift.UserRelation, error) {
 	var userRelations []*thrift.UserRelation
-	ret := db.Model(&entity.UserRelationRequest{}).Where("user_id_recv = ? AND id = ?", userId, userRelationId).Find(&userRelations)
+	ret := db.Table("user_relation_request").Where("user_id_recv = ? AND id = ?", userId, userRelationId).Find(&userRelations)
 	if ret.Error != nil && !ret.RecordNotFound() {
 		return nil, ret.Error
 	}

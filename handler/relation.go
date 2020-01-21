@@ -9,6 +9,7 @@ import (
 	"poseidon/infra/mysql"
 	"poseidon/infra/redis"
 	"poseidon/thrift"
+	"time"
 )
 
 func AddFriend(ctx context.Context, req *thrift.AddFriendReq) (*thrift.AddFriendResp, error) {
@@ -20,6 +21,7 @@ func AddFriend(ctx context.Context, req *thrift.AddFriendReq) (*thrift.AddFriend
 		"Id":         userRelationRequest.Id,
 		"UserIdSend": req.UserIdSend,
 		"UserIdRecv": req.UserIdRecv,
+		"CreateTime": time.Now().Unix(),
 	}, redis.AddFriend)
 	if err != nil {
 		logrus.Warnf("redis AddFriend failed, req: %+v, err: %+v", req, err)
