@@ -11,39 +11,64 @@ func CreateUserRelationRequest(userIdSend, userIdRecv int64) (*entity.UserRelati
 	return &userRelationRequest, db.Create(&userRelationRequest).Error
 }
 
-func AcceptedAddFriend(id int64) error {
+func AcceptedAddFriend(id int64) (userIdSend int64, userIdRecv int64, err error) {
 	tx := db.Begin()
 	defer tx.Rollback()
 	if err := tx.Model(&entity.UserRelationRequest{}).Where("id = ?", id).Update(map[string]interface{}{
 		"status": entity.Accepted,
 	}).Error; err != nil {
-		return err
+		return 0, 0, err
 	}
 	req := entity.UserRelationRequest{Id: id}
 	if err := tx.Model(&req).Select("user_id_send, user_id_recv").First(&req).Error; err != nil {
-		return err
+		return 0, 0, err
 	}
 	now := time.Now()
 	if err := tx.Create(&entity.UserRelation{UserId: req.UserIdSend, FriendUserId: req.UserIdRecv, CreateTime: now.Unix()}).Error; err != nil {
-		return err
+		return 0, 0, err
 	}
 	if err := tx.Create(&entity.UserRelation{UserId: req.UserIdRecv, FriendUserId: req.UserIdSend, CreateTime: now.Unix()}).Error; err != nil {
-		return err
+		return 0, 0, err
 	}
-	return tx.Commit().Error
+	return req.UserIdSend, req.UserIdRecv, tx.Commit().Error
 }
 
-func RejectedAddFriend(id int64) error {
-	return db.Model(&entity.UserRelationRequest{}).Where("id = ?", id).Update(map[string]interface{}{
+func RejectedAddFriend(id int64) (userIdSend int64, userIdRecv int64, err error) {
+	if err := db.Model(&entity.UserRelationRequest{}).Where("id = ?", id).Update(map[string]interface{}{
 		"status": entity.Rejected,
-	}).Error
+	}).Error; err != nil {
+		return 0, 0, err
+	}
+	req := entity.UserRelationRequest{Id: id}
+	if err := db.Model(&req).Select("user_id_send, user_id_recv").First(&req).Error; err != nil {
+		return 0, 0, err
+	}
+	return req.UserIdSend, req.UserIdRecv, nil
 }
 
-func FetchOfflineUserRelation(userId, userRelationId int64) ([]*thrift.UserRelation, error) {
+func SyncUserRelation(userId, userRelationId int64) ([]*thrift.UserRelation, error) {
 	var userRelations []*thrift.UserRelation
-	ret := db.Table("user_relation_request").Where("user_id_recv = ? AND id = ?", userId, userRelationId).Find(&userRelations)
+	ret := db.Table("user_relation_request").Where("(user_id_recv = ? OR user_id_send = ?) AND id > ?", userId, userId, userRelationId).Find(&userRelations)
 	if ret.Error != nil && !ret.RecordNotFound() {
 		return nil, ret.Error
 	}
 	return userRelations, nil
+}
+
+func CreateReplyAddFriend(parentId int64, userIdSend int64, userIdRecv int64, now time.Time) (int64, error) {
+	userRelationRequest := entity.UserRelationRequest{UserIdSend: userIdSend, UserIdRecv: userIdRecv, CreateTime: now.Unix(), Status: entity.Pending, ParentId: &parentId}
+	if err := db.Create(&userRelationRequest).Error; err != nil {
+		return 0, err
+	}
+	return userRelationRequest.Id, nil
+}
+
+func CheckDuplicateRequest(userIdSend int64, userIdRecv int64) (bool, error) {
+	var count int
+	if err := db.Model(&entity.UserRelationRequest{}).
+		Where("((user_id_send = ? AND user_id_recv = ?) OR (user_id_send = ? AND user_id_recv = ?)) AND status = 0 AND parent_id IS NULL", userIdSend, userIdRecv, userIdRecv, userIdSend).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count == 0, nil
 }

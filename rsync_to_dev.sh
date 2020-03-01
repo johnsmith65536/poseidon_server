@@ -1,3 +1,2 @@
 #!/bin/bash
-
-rsync -avr --exclude .git --exclude output/ --exclude .idea/ . johnsmith@192.168.6.128:~/go/src/poseidon
+rsync -avr --exclude .git --exclude output/ --exclude .idea/ . root@112.74.188.186:/root/gopath/src/poseidon

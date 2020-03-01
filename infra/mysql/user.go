@@ -27,3 +27,21 @@ func UpdateLastOnlineTime(userId int64, time time.Time) error {
 		"last_online_time": time,
 	}).Error
 }
+
+func GetLastOnlineTime(userId int64) (int64, error) {
+	var user entity.User
+	res := db.Model(&entity.User{}).Select("last_online_time").Where("id = ?", userId).First(&user)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return user.LastOnlineTime.Unix(), nil
+}
+
+func SearchUser(data string) ([]entity.User, error) {
+	var users []entity.User
+	res := db.Model(&entity.User{}).Select("id, nick_name, last_online_time").Where("id = ? OR nick_name LIKE ?", data, "%" + data + "%").Find(&users)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return users, nil
+}

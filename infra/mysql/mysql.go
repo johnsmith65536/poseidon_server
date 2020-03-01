@@ -12,7 +12,7 @@ const Addr = "localhost:3306"
 
 func Init() {
 	var err error
-	dsn := "root:mysql@tcp(" + Addr + ")/poseidon?charset=utf8mb4&parseTime=True&timeout=5000ms&readTimeout=5000ms&writeTimeout=5000ms&loc=Asia%2FChongqing&interpolateParams=true&maxAllowedPacket=0"
+	dsn := "root:admin@tcp(" + Addr + ")/poseidon?charset=utf8mb4&parseTime=True&timeout=5000ms&readTimeout=5000ms&writeTimeout=5000ms&loc=Asia%2FChongqing&interpolateParams=true&maxAllowedPacket=0"
 	db, err = gorm.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)

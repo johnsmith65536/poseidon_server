@@ -11,8 +11,9 @@ const messageChannel = "poseidon_message_channel_"
 type BroadcastMsgType int
 
 const (
-	Chat      BroadcastMsgType = 0
-	AddFriend BroadcastMsgType = 1
+	Chat           BroadcastMsgType = 0
+	AddFriend      BroadcastMsgType = 1
+	ReplyAddFriend BroadcastMsgType = 2
 )
 
 func BroadcastMessage(userId int64, data map[string]interface{}, msgType BroadcastMsgType) error {

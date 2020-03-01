@@ -32,25 +32,29 @@ func SendMessage(ctx context.Context, req *thrift.SendMessageReq) (*thrift.SendM
 		"CreateTime": msg.CreateTime,
 		"MsgType":    msg.MsgType,
 	}, redis.Chat)
-	return &thrift.SendMessageResp{ID: msg.Id}, nil
+	return &thrift.SendMessageResp{ID: msg.Id, CreateTime: msg.CreateTime}, nil
 }
 
-func MessageDelivered(ctx context.Context, req *thrift.MessageDeliveredReq) (*thrift.MessageDeliveredResp, error) {
-	err := mysql.MessageDelivered(req.MsgId)
+func UpdateMessageStatus(ctx context.Context, req *thrift.UpdateMessageStatusReq) (*thrift.UpdateMessageStatusResp, error) {
+	err := mysql.UpdateMessageStatus(req.MessageIds,req.UserRelationRequestIds)
 	if err != nil {
 		return nil, err
 	}
-	return &thrift.MessageDeliveredResp{Status: 0}, nil
+	return &thrift.UpdateMessageStatusResp{}, nil
 }
 
-func FetchOfflineMessage(ctx context.Context, req *thrift.FetchOfflineMessageReq) (*thrift.FetchOfflineMessageResp, error) {
-	messages, err := mysql.FetchOfflineMessage(req.UserId, req.MessageId)
+func SyncMessage(ctx context.Context, req *thrift.SyncMessageReq) (*thrift.SyncMessageResp, error) {
+	messages, err := mysql.SyncMessage(req.UserId, req.MessageId)
 	if err != nil {
 		return nil, err
 	}
-	userRelations, err := mysql.FetchOfflineUserRelation(req.UserId, req.UserRelationId)
+	userRelations, err := mysql.SyncUserRelation(req.UserId, req.UserRelationId)
 	if err != nil {
 		return nil, err
 	}
-	return &thrift.FetchOfflineMessageResp{Messages: messages, UserRelations: userRelations}, nil
+	lastOnlineTime, err := mysql.GetLastOnlineTime(req.UserId)
+	if err != nil {
+		return nil, err
+	}
+	return &thrift.SyncMessageResp{Messages: messages, UserRelations: userRelations, LastOnlineTime: lastOnlineTime}, nil
 }

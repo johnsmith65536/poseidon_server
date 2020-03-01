@@ -69,10 +69,10 @@ func (fdi *ServiceImpl) FetchFriendsList(ctx context.Context, req *thrift.FetchF
 	return resp, err
 }
 
-func (fdi *ServiceImpl) FetchOfflineMessage(ctx context.Context, req *thrift.FetchOfflineMessageReq) (resp *thrift.FetchOfflineMessageResp, err error) {
-	resp, err = handler.FetchOfflineMessage(ctx, req)
+func (fdi *ServiceImpl) SyncMessage(ctx context.Context, req *thrift.SyncMessageReq) (resp *thrift.SyncMessageResp, err error) {
+	resp, err = handler.SyncMessage(ctx, req)
 	if err != nil {
-		logrus.Errorf("FetchOfflineMessage failed, err: %+s", err)
+		logrus.Errorf("SyncMessage failed, err: %+s", err)
 	}
 	logrus.Info(req)
 	logrus.Info(resp)
@@ -101,10 +101,20 @@ func (fdi *ServiceImpl) ReplyAddFriend(ctx context.Context, req *thrift.ReplyAdd
 	return resp, err
 }
 
-func (fdi *ServiceImpl) MessageDelivered(ctx context.Context, req *thrift.MessageDeliveredReq) (resp *thrift.MessageDeliveredResp, err error) {
-	resp, err = handler.MessageDelivered(ctx, req)
+func (fdi *ServiceImpl) UpdateMessageStatus(ctx context.Context, req *thrift.UpdateMessageStatusReq) (resp *thrift.UpdateMessageStatusResp, err error) {
+	resp, err = handler.UpdateMessageStatus(ctx, req)
 	if err != nil {
-		logrus.Errorf("MessageDelivered failed, err: %+s", err)
+		logrus.Errorf("UpdateMessageStatus failed, err: %+s", err)
+	}
+	logrus.Info(req)
+	logrus.Info(resp)
+	return resp, err
+}
+
+func (fdi *ServiceImpl) SearchUser(ctx context.Context, req *thrift.SearchUserReq) (resp *thrift.SearchUserResp, err error) {
+	resp, err = handler.SearchUser(ctx, req)
+	if err != nil {
+		logrus.Errorf("SearchUser failed, err: %+s", err)
 	}
 	logrus.Info(req)
 	logrus.Info(resp)
