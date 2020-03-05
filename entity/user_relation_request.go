@@ -6,7 +6,7 @@ type UserRelationRequest struct {
 	UserIdRecv int64
 	CreateTime int64
 	Status     Status
-	ParentId   *int64
+	ParentId   int64
 }
 
 type Status int32

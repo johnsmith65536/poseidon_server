@@ -21,6 +21,14 @@ func AddFriend(ctx context.Context, req *thrift.AddFriendReq) (*thrift.AddFriend
 		return &thrift.AddFriendResp{StatusCode: 1}, nil
 	}
 
+	ok, err = mysql.CheckIsFriend(req.UserIdSend, req.UserIdRecv)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return &thrift.AddFriendResp{StatusCode: 2}, nil
+	}
+
 	userRelationRequest, err := mysql.CreateUserRelationRequest(req.UserIdSend, req.UserIdRecv)
 	if err != nil {
 		return nil, err
@@ -96,4 +104,12 @@ func FetchFriendsList(ctx context.Context, req *thrift.FetchFriendsListReq) (*th
 		}
 	}
 	return &thrift.FetchFriendsListResp{OnlineUserIds: onlineFriendUserIds, OfflineUserIds: offlineFriendUserIds}, nil
+}
+
+func DeleteFriend(ctx context.Context, req *thrift.DeleteFriendReq) (*thrift.DeleteFriendResp, error) {
+	err := mysql.DeleteFriend(req.UserIdSend, req.UserIdRecv)
+	if err != nil {
+		return nil, err
+	}
+	return &thrift.DeleteFriendResp{}, nil
 }

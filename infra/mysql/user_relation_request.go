@@ -7,7 +7,7 @@ import (
 )
 
 func CreateUserRelationRequest(userIdSend, userIdRecv int64) (*entity.UserRelationRequest, error) {
-	userRelationRequest := entity.UserRelationRequest{UserIdSend: userIdSend, UserIdRecv: userIdRecv, CreateTime: time.Now().Unix(), Status: entity.Pending}
+	userRelationRequest := entity.UserRelationRequest{UserIdSend: userIdSend, UserIdRecv: userIdRecv, CreateTime: time.Now().Unix(), Status: entity.Pending, ParentId: -1}
 	return &userRelationRequest, db.Create(&userRelationRequest).Error
 }
 
@@ -56,7 +56,7 @@ func SyncUserRelation(userId, userRelationId int64) ([]*thrift.UserRelation, err
 }
 
 func CreateReplyAddFriend(parentId int64, userIdSend int64, userIdRecv int64, now time.Time) (int64, error) {
-	userRelationRequest := entity.UserRelationRequest{UserIdSend: userIdSend, UserIdRecv: userIdRecv, CreateTime: now.Unix(), Status: entity.Pending, ParentId: &parentId}
+	userRelationRequest := entity.UserRelationRequest{UserIdSend: userIdSend, UserIdRecv: userIdRecv, CreateTime: now.Unix(), Status: entity.Pending, ParentId: parentId}
 	if err := db.Create(&userRelationRequest).Error; err != nil {
 		return 0, err
 	}
@@ -66,9 +66,22 @@ func CreateReplyAddFriend(parentId int64, userIdSend int64, userIdRecv int64, no
 func CheckDuplicateRequest(userIdSend int64, userIdRecv int64) (bool, error) {
 	var count int
 	if err := db.Model(&entity.UserRelationRequest{}).
-		Where("((user_id_send = ? AND user_id_recv = ?) OR (user_id_send = ? AND user_id_recv = ?)) AND status = 0 AND parent_id IS NULL", userIdSend, userIdRecv, userIdRecv, userIdSend).
+		Where("((user_id_send = ? AND user_id_recv = ?) OR (user_id_send = ? AND user_id_recv = ?)) AND status = 0 AND parent_id = -1", userIdSend, userIdRecv, userIdRecv, userIdSend).
 		Count(&count).Error; err != nil {
 		return false, err
 	}
 	return count == 0, nil
+}
+
+func GetRelationStatus(ids []int64) (map[int64]int32, error) {
+	var res []*entity.UserRelationRequest
+	ret := make(map[int64]int32)
+	err := db.Model(&entity.UserRelationRequest{}).Select("id, status").Where("id in (?)", ids).Find(&res).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, obj := range res {
+		ret[obj.Id] = int32(obj.Status)
+	}
+	return ret, nil
 }

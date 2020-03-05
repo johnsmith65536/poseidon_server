@@ -2,6 +2,7 @@ package mysql
 
 import (
 	_ "github.com/go-sql-driver/mysql"
+	"testing"
 )
 
 /*func TestFetchOfflineUserRelation(t *testing.T) {
@@ -14,3 +15,12 @@ import (
 	t.Log(resp)
 }
 */
+
+func TestGetRelationStatus(t *testing.T) {
+	Init()
+	res, err := GetRelationStatus([]int64{1,62,63})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(res)
+}

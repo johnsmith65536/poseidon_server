@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func WriteMessage(userIdSend, userIdRecv int64, groupId int64, content string, createTime time.Time, msgType int32, isRead bool) (*entity.Message, error) {
-	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: content, CreateTime: createTime.Unix(), MsgType: msgType, IsRead: isRead}
+func WriteMessage(userIdSend, userIdRecv int64, groupId int64, content string, createTime time.Time, contentType int32, msgType int32, isRead bool) (*entity.Message, error) {
+	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: content, CreateTime: createTime.Unix(), ContentType: contentType, MsgType: msgType, IsRead: isRead}
 	return &message, db.Create(&message).Error
 }
 
@@ -38,9 +38,26 @@ func UpdateMessageStatus(messageIds map[int64]int32, userRelationRequestIds map[
 
 func SyncMessage(userId, messageId int64) ([]*thrift.Message, error) {
 	var messages []*thrift.Message
-	ret := db.Model(&entity.Message{}).Where("user_id_recv = ? AND id > ?", userId, messageId).Find(&messages)
+	ret := db.Model(&entity.Message{}).Where("(user_id_send = ? OR user_id_recv = ?) AND id > ?", userId, userId, messageId).Find(&messages)
 	if ret.Error != nil && !ret.RecordNotFound() {
 		return nil, ret.Error
 	}
 	return messages, nil
+}
+
+func GetMessageStatus(ids []int64) (map[int64]int32, error) {
+	var messages []entity.Message
+	res := make(map[int64]int32)
+	err := db.Model(&entity.Message{}).Select("id, is_read").Where("id in (?)", ids).Find(&messages).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, message := range messages {
+		if message.IsRead {
+			res[message.Id] = 1
+		} else {
+			res[message.Id] = 0
+		}
+	}
+	return res, nil
 }

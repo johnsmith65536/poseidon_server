@@ -3,6 +3,7 @@ module poseidon
 go 1.12
 
 require (
+	github.com/aliyun/aliyun-oss-go-sdk v2.0.6+incompatible // indirect
 	github.com/apache/thrift v0.13.0
 	github.com/go-redis/redis v6.15.6+incompatible
 	github.com/go-sql-driver/mysql v1.4.1

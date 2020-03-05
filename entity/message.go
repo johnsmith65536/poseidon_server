@@ -1,12 +1,20 @@
 package entity
 
 type Message struct {
-	Id         int64
-	UserIdSend int64
-	UserIdRecv int64
-	GroupId    int64
-	Content    string
-	CreateTime int64
-	MsgType    int32
-	IsRead     bool
+	Id          int64
+	UserIdSend  int64
+	UserIdRecv  int64
+	GroupId     int64
+	Content     string
+	CreateTime  int64
+	ContentType int32
+	MsgType     int32
+	IsRead      bool
 }
+
+type ContentType int32
+
+const (
+	Text   ContentType = 0
+	ObjectData ContentType = 1
+)

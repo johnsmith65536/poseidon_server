@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"poseidon/handler"
 	"poseidon/thrift"
@@ -78,9 +77,14 @@ func (fdi *ServiceImpl) SyncMessage(ctx context.Context, req *thrift.SyncMessage
 	logrus.Info(resp)
 	return resp, err
 }
-func (fdi *ServiceImpl) UploadObject(ctx context.Context, req *thrift.UploadObjectReq) (resp *thrift.UploadObjectResp, err error) {
-	fmt.Printf("%+v\n", req)
-	return &thrift.UploadObjectResp{}, nil
+func (fdi *ServiceImpl) CreateObject(ctx context.Context, req *thrift.CreateObjectReq) (resp *thrift.CreateObjectResp, err error) {
+	resp, err = handler.CreateObject(ctx, req)
+	if err != nil {
+		logrus.Errorf("CreateObject failed, err: %+s", err)
+	}
+	logrus.Info(req)
+	logrus.Info(resp)
+	return resp, err
 }
 func (fdi *ServiceImpl) AddFriend(ctx context.Context, req *thrift.AddFriendReq) (resp *thrift.AddFriendResp, err error) {
 	resp, err = handler.AddFriend(ctx, req)
@@ -115,6 +119,36 @@ func (fdi *ServiceImpl) SearchUser(ctx context.Context, req *thrift.SearchUserRe
 	resp, err = handler.SearchUser(ctx, req)
 	if err != nil {
 		logrus.Errorf("SearchUser failed, err: %+s", err)
+	}
+	logrus.Info(req)
+	logrus.Info(resp)
+	return resp, err
+}
+
+func (fdi *ServiceImpl) DeleteFriend(ctx context.Context, req *thrift.DeleteFriendReq) (resp *thrift.DeleteFriendResp, err error) {
+	resp, err = handler.DeleteFriend(ctx, req)
+	if err != nil {
+		logrus.Errorf("DeleteFriend failed, err: %+s", err)
+	}
+	logrus.Info(req)
+	logrus.Info(resp)
+	return resp, err
+}
+
+func (fdi *ServiceImpl) GetSTSInfo(ctx context.Context, req *thrift.GetSTSInfoReq) (resp *thrift.GetSTSInfoResp, err error) {
+	resp, err = handler.GetSTSInfo(ctx, req)
+	if err != nil {
+		logrus.Errorf("GetSTSInfo failed, err: %+s", err)
+	}
+	logrus.Info(req)
+	logrus.Info(resp)
+	return resp, err
+}
+
+func (fdi *ServiceImpl) FetchMessageStatus(ctx context.Context, req *thrift.FetchMessageStatusReq) (resp *thrift.FetchMessageStatusResp, err error) {
+	resp, err = handler.FetchMessageStatus(ctx, req)
+	if err != nil {
+		logrus.Errorf("FetchMessageStatus failed, err: %+s", err)
 	}
 	logrus.Info(req)
 	logrus.Info(resp)
