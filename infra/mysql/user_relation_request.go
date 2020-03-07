@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"poseidon/entity"
-	"poseidon/thrift"
 	"time"
 )
 
@@ -46,13 +45,13 @@ func RejectedAddFriend(id int64) (userIdSend int64, userIdRecv int64, err error)
 	return req.UserIdSend, req.UserIdRecv, nil
 }
 
-func SyncUserRelation(userId, userRelationId int64) ([]*thrift.UserRelation, error) {
-	var userRelations []*thrift.UserRelation
-	ret := db.Table("user_relation_request").Where("(user_id_recv = ? OR user_id_send = ?) AND id > ?", userId, userId, userRelationId).Find(&userRelations)
+func SyncUserRelationRequest(userId, userRelationId int64) ([]*entity.UserRelationRequest, error) {
+	var userRelationRequests []*entity.UserRelationRequest
+	ret := db.Table("user_relation_request").Where("(user_id_recv = ? OR user_id_send = ?) AND id > ?", userId, userId, userRelationId).Find(&userRelationRequests)
 	if ret.Error != nil && !ret.RecordNotFound() {
 		return nil, ret.Error
 	}
-	return userRelations, nil
+	return userRelationRequests, nil
 }
 
 func CreateReplyAddFriend(parentId int64, userIdSend int64, userIdRecv int64, now time.Time) (int64, error) {

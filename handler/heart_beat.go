@@ -1,21 +1,43 @@
 package handler
 
 import (
-	"context"
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"poseidon/infra/mysql"
 	"poseidon/infra/redis"
-	"poseidon/thrift"
+	"strconv"
 	"time"
 )
 
-func HeartBeat(ctx context.Context, req *thrift.HeartBeatReq) (*thrift.HeartBeatResp, error) {
-	err := mysql.UpdateLastOnlineTime(req.UserId, time.Now())
+type Status struct {
+	StatusCode    int
+	StatusMessage string
+}
+
+type HeartBeatResp struct {
+	Status
+}
+
+func HeartBeat(c *gin.Context) {
+	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
 	if err != nil {
-		return nil, err
+		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	err = redis.AddUser(req.UserId)
+	err = mysql.UpdateLastOnlineTime(userId, time.Now())
 	if err != nil {
-		return nil, err
+		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	return &thrift.HeartBeatResp{}, nil
+	err = redis.AddUser(userId)
+	if err != nil {
+		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	c.JSON(200, HeartBeatResp{})
+}
+
+func Ping(c *gin.Context) {
+	fmt.Println(c.QueryArray("data"))
+	fmt.Println(c.QueryArray("info"))
 }

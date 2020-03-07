@@ -1,29 +1,74 @@
 package handler
 
 import (
-	"context"
+	"github.com/gin-gonic/gin"
 	"poseidon/entity"
 	"poseidon/infra/mysql"
 	"poseidon/infra/redis"
-	"poseidon/thrift"
 	"strconv"
 	"time"
 )
 
-//Id         int64
-//UserIdSend int64
-//UserIdRecv int64
-//GroupId    int64
-//Content    string
-//CreateTime int64
-//MsgType    int32
-//Delivered  bool
-//Read       bool
+type SendMessageReq struct {
+	UserIdSend  int64
+	IdRecv      int64
+	Content     string
+	ContentType int32
+	MessageType int32
+}
 
-func SendMessage(ctx context.Context, req *thrift.SendMessageReq) (*thrift.SendMessageResp, error) {
+type SendMessageResp struct {
+	Id         int64
+	CreateTime int64
+	Status
+}
+
+/*type SyncMessageReq struct {
+	UserId         int64
+	MessageId      int64
+	UserRelationId int64
+}*/
+
+type SyncMessageResp struct {
+	Messages       []*entity.Message
+	UserRelations  []*entity.UserRelationRequest
+	Objects        []*entity.Object
+	LastOnlineTime int64
+	Status
+}
+
+type UpdateMessageStatusReq struct {
+	MessageIds             map[int64]int32
+	UserRelationRequestIds map[int64]int32
+}
+
+type UpdateMessageStatusResp struct {
+	Status
+}
+
+/*type FetchMessageStatusReq struct {
+	MessageIds []int64 `thrift:"MessageIds,1" db:"MessageIds" json:"MessageIds"`
+	UserRelationRequestIds []int64 `thrift:"UserRelationRequestIds,2" db:"UserRelationRequestIds" json:"UserRelationRequestIds"`
+}*/
+
+type FetchMessageStatusResp struct {
+	MessageIds             map[int64]int32
+	UserRelationRequestIds map[int64]int32
+	Status
+}
+
+func SendMessage(c *gin.Context) {
+	var req SendMessageReq
+	var err error
+	err = c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
 	msg, err := mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, req.Content, time.Now(), req.ContentType, req.MessageType, false)
 	if err != nil {
-		return nil, err
+		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
 	broadcastMsg := map[string]interface{}{
 		"Id":          msg.Id,
@@ -41,65 +86,132 @@ func SendMessage(ctx context.Context, req *thrift.SendMessageReq) (*thrift.SendM
 	case int32(entity.ObjectData):
 		objId, err := strconv.ParseInt(req.Content, 10, 64)
 		if err != nil {
-			return nil, err
+			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+			return
 		}
 		object, err := mysql.GetObject(objId)
 		if err != nil {
-			return nil, err
+			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+			return
 		}
 		broadcastMsg["ObjectETag"] = object.ETag
 		broadcastMsg["ObjectName"] = object.Name
 	}
 	go redis.BroadcastMessage(req.IdRecv, broadcastMsg, redis.Chat)
-	return &thrift.SendMessageResp{ID: msg.Id, CreateTime: msg.CreateTime}, nil
+	c.JSON(200, SendMessageResp{Id: msg.Id, CreateTime: msg.CreateTime})
 }
 
-func UpdateMessageStatus(ctx context.Context, req *thrift.UpdateMessageStatusReq) (*thrift.UpdateMessageStatusResp, error) {
-	err := mysql.UpdateMessageStatus(req.MessageIds, req.UserRelationRequestIds)
+func SyncMessage(c *gin.Context) {
+	var err error
+	userId, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
 	if err != nil {
-		return nil, err
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	return &thrift.UpdateMessageStatusResp{}, nil
-}
 
-func SyncMessage(ctx context.Context, req *thrift.SyncMessageReq) (*thrift.SyncMessageResp, error) {
-	messages, err := mysql.SyncMessage(req.UserId, req.MessageId)
+	messageId, err := strconv.ParseInt(c.Query("message_id"), 10, 64)
 	if err != nil {
-		return nil, err
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	userRelations, err := mysql.SyncUserRelation(req.UserId, req.UserRelationId)
+
+	userRelationId, err := strconv.ParseInt(c.Query("user_relation_id"), 10, 64)
 	if err != nil {
-		return nil, err
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+
+	messages, err := mysql.SyncMessage(userId, messageId)
+	if err != nil {
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	userRelations, err := mysql.SyncUserRelationRequest(userId, userRelationId)
+	if err != nil {
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
 	var objIds []int64
 	for _, message := range messages {
 		if message.ContentType == int32(entity.ObjectData) {
 			objId, err := strconv.ParseInt(message.Content, 10, 64)
 			if err != nil {
-				return nil, err
+				c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+				return
 			}
 			objIds = append(objIds, objId)
 		}
 	}
 	objects, err := mysql.SyncObject(objIds)
 	if err != nil {
-		return nil, err
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	lastOnlineTime, err := mysql.GetLastOnlineTime(req.UserId)
+	lastOnlineTime, err := mysql.GetLastOnlineTime(userId)
 	if err != nil {
-		return nil, err
+		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	return &thrift.SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, LastOnlineTime: lastOnlineTime}, nil
+	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, LastOnlineTime: lastOnlineTime})
 }
 
-func FetchMessageStatus(ctx context.Context, req *thrift.FetchMessageStatusReq) (*thrift.FetchMessageStatusResp, error) {
-	messageStatus, err := mysql.GetMessageStatus(req.MessageIds)
+func UpdateMessageStatus(c *gin.Context) {
+	var req UpdateMessageStatusReq
+	var err error
+	err = c.ShouldBindJSON(&req)
 	if err != nil {
-		return nil, err
+		c.JSON(200, UpdateMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	relationStatus, err := mysql.GetRelationStatus(req.UserRelationRequestIds)
+	err = mysql.UpdateMessageStatus(req.MessageIds, req.UserRelationRequestIds)
 	if err != nil {
-		return nil, err
+		c.JSON(200, UpdateMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	return &thrift.FetchMessageStatusResp{MessageIds: messageStatus, UserRelationRequestIds: relationStatus}, nil
+	c.JSON(200, UpdateMessageStatusResp{})
+}
+
+func FetchMessageStatus(c *gin.Context) {
+	var err error
+	var messageIds []int64
+	var userRelationRequestIds []int64
+	messageIdsStr := c.QueryArray("message_ids")
+	if err != nil {
+		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	for _, messageIdStr := range messageIdsStr {
+		messageId, err := strconv.ParseInt(messageIdStr, 10, 64)
+		if err != nil {
+			c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+			return
+		}
+		messageIds = append(messageIds, messageId)
+	}
+
+	userRelationRequestIdsStr := c.QueryArray("user_relation_request_ids")
+	if err != nil {
+		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	for _, userRelationRequestIdStr := range userRelationRequestIdsStr {
+		userRelationRequestId, err := strconv.ParseInt(userRelationRequestIdStr, 10, 64)
+		if err != nil {
+			c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+			return
+		}
+		userRelationRequestIds = append(userRelationRequestIds, userRelationRequestId)
+	}
+
+	messageStatus, err := mysql.GetMessageStatus(messageIds)
+	if err != nil {
+		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	relationStatus, err := mysql.GetRelationStatus(userRelationRequestIds)
+	if err != nil {
+		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	c.JSON(200, FetchMessageStatusResp{MessageIds:messageStatus,UserRelationRequestIds:relationStatus})
 }

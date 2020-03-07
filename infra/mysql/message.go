@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"poseidon/entity"
-	"poseidon/thrift"
 	"time"
 )
 
@@ -36,8 +35,8 @@ func UpdateMessageStatus(messageIds map[int64]int32, userRelationRequestIds map[
 	return nil
 }
 
-func SyncMessage(userId, messageId int64) ([]*thrift.Message, error) {
-	var messages []*thrift.Message
+func SyncMessage(userId, messageId int64) ([]*entity.Message, error) {
+	var messages []*entity.Message
 	ret := db.Model(&entity.Message{}).Where("(user_id_send = ? OR user_id_recv = ?) AND id > ?", userId, userId, messageId).Find(&messages)
 	if ret.Error != nil && !ret.RecordNotFound() {
 		return nil, ret.Error

@@ -1,94 +1,76 @@
 package handler
 
 import (
-	"context"
-	"errors"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"poseidon/entity"
 	"poseidon/infra/mysql"
 	"poseidon/infra/redis"
-	"poseidon/thrift"
+	"strconv"
 	"time"
 )
 
-func AddFriend(ctx context.Context, req *thrift.AddFriendReq) (*thrift.AddFriendResp, error) {
-	ok, err := mysql.CheckDuplicateRequest(req.UserIdSend, req.UserIdRecv)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return &thrift.AddFriendResp{StatusCode: 1}, nil
-	}
-
-	ok, err = mysql.CheckIsFriend(req.UserIdSend, req.UserIdRecv)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return &thrift.AddFriendResp{StatusCode: 2}, nil
-	}
-
-	userRelationRequest, err := mysql.CreateUserRelationRequest(req.UserIdSend, req.UserIdRecv)
-	if err != nil {
-		return nil, err
-	}
-	now := time.Now()
-	err = redis.BroadcastMessage(req.UserIdRecv, map[string]interface{}{
-		"Id":         userRelationRequest.Id,
-		"UserIdSend": req.UserIdSend,
-		"UserIdRecv": req.UserIdRecv,
-		"CreateTime": now.Unix(),
-	}, redis.AddFriend)
-	if err != nil {
-		logrus.Warnf("redis AddFriend failed, req: %+v, err: %+v", req, err)
-	}
-	return &thrift.AddFriendResp{ID: userRelationRequest.Id, CreateTime: now.Unix()}, nil
+type AddFriendReq struct {
+	UserIdSend int64
+	UserIdRecv int64
 }
 
-func ReplyAddFriend(ctx context.Context, req *thrift.ReplyAddFriendReq) (*thrift.ReplyAddFriendResp, error) {
-	var userIdSend, userIdRecv int64
+type AddFriendResp struct {
+	Id         int64
+	CreateTime int64
+	//StatusCode int32 `thrift:"StatusCode,255" db:"StatusCode" json:"StatusCode"`
+	Status
+}
+
+type ReplyAddFriendReq struct {
+	Id     int64
+	Status int32
+}
+
+type ReplyAddFriendResp struct {
+	Id         int64
+	CreateTime int64
+	Status
+}
+
+/*type FetchFriendListReq struct {
+	UserId int64 `thrift:"UserId,1" db:"UserId" json:"UserId"`
+}*/
+
+type FetchFriendListResp struct {
+	OnlineUserIds  []int64
+	OfflineUserIds []int64
+	Status
+}
+
+/*type DeleteFriendReq struct {
+	UserIdSend int64 `thrift:"UserIdSend,1" db:"UserIdSend" json:"UserIdSend"`
+	UserIdRecv int64 `thrift:"UserIdRecv,2" db:"UserIdRecv" json:"UserIdRecv"`
+}
+*/
+type DeleteFriendResp struct {
+	Status
+}
+
+func FetchFriendList(c *gin.Context) {
 	var err error
-	now := time.Now()
 
-	switch req.Status {
-	case int32(entity.Accepted):
-		userIdSend, userIdRecv, err = mysql.AcceptedAddFriend(req.ID)
-	case int32(entity.Rejected):
-		userIdSend, userIdRecv, err = mysql.RejectedAddFriend(req.ID)
-	default:
-		return nil, errors.New(fmt.Sprintf("req.Status invalid, Status: %d", req.Status))
-	}
+	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
 	if err != nil {
-		return nil, err
+		c.JSON(200, FetchFriendListResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	id, err := mysql.CreateReplyAddFriend(req.ID, userIdRecv, userIdSend, now)
-	if err != nil {
-		return nil, err
-	}
-	//	mq message
-	err = redis.BroadcastMessage(userIdSend, map[string]interface{}{
-		"Id":         id,
-		"ParentId":   req.ID,
-		"UserIdSend": userIdRecv,
-		"UserIdRecv": userIdSend,
-		"CreateTime": now.Unix(),
-		"Status":     req.Status,
-	}, redis.ReplyAddFriend)
-	if err != nil {
-		logrus.Warnf("redis ReplyAddFriend failed, err: %+v", err)
-	}
-	return &thrift.ReplyAddFriendResp{ID: id, CreateTime: now.Unix()}, nil
-}
 
-func FetchFriendsList(ctx context.Context, req *thrift.FetchFriendsListReq) (*thrift.FetchFriendsListResp, error) {
-	userIds, err := mysql.GetFriendsList(req.UserId)
+	userIds, err := mysql.GetFriendsList(userId)
 	if err != nil {
-		return nil, err
+		c.JSON(200, FetchFriendListResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
 	onlineUserIds, err := redis.GetUsers()
 	if err != nil {
-		return nil, err
+		c.JSON(200, FetchFriendListResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
 	onlineUserIdMap := make(map[int64]bool)
 	for _, userId := range onlineUserIds {
@@ -103,13 +85,118 @@ func FetchFriendsList(ctx context.Context, req *thrift.FetchFriendsListReq) (*th
 			offlineFriendUserIds = append(offlineFriendUserIds, userId)
 		}
 	}
-	return &thrift.FetchFriendsListResp{OnlineUserIds: onlineFriendUserIds, OfflineUserIds: offlineFriendUserIds}, nil
+	c.JSON(200, FetchFriendListResp{OnlineUserIds: onlineFriendUserIds, OfflineUserIds: offlineFriendUserIds})
 }
 
-func DeleteFriend(ctx context.Context, req *thrift.DeleteFriendReq) (*thrift.DeleteFriendResp, error) {
-	err := mysql.DeleteFriend(req.UserIdSend, req.UserIdRecv)
+func AddFriend(c *gin.Context) {
+	var err error
+	var req AddFriendReq
+	err = c.ShouldBindJSON(&req)
 	if err != nil {
-		return nil, err
+		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
 	}
-	return &thrift.DeleteFriendResp{}, nil
+	ok, err := mysql.CheckDuplicateRequest(req.UserIdSend, req.UserIdRecv)
+	if err != nil {
+		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	if !ok {
+		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 1, StatusMessage: "duplicate request"}})
+		return
+	}
+
+	ok, err = mysql.CheckIsFriend(req.UserIdSend, req.UserIdRecv)
+	if err != nil {
+		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	if !ok {
+		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 2, StatusMessage: "already friend"}})
+		return
+	}
+
+	userRelationRequest, err := mysql.CreateUserRelationRequest(req.UserIdSend, req.UserIdRecv)
+	if err != nil {
+		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	now := time.Now()
+	err = redis.BroadcastMessage(req.UserIdRecv, map[string]interface{}{
+		"Id":         userRelationRequest.Id,
+		"UserIdSend": req.UserIdSend,
+		"UserIdRecv": req.UserIdRecv,
+		"CreateTime": now.Unix(),
+	}, redis.AddFriend)
+	if err != nil {
+		logrus.Warnf("redis AddFriend failed, req: %+v, err: %+v", req, err)
+	}
+	c.JSON(200, AddFriendResp{Id: userRelationRequest.Id, CreateTime: now.Unix()})
+}
+
+func ReplyAddFriend(c *gin.Context) {
+	var err error
+	var req ReplyAddFriendReq
+	err = c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+
+	var userIdSend, userIdRecv int64
+	now := time.Now()
+
+	switch req.Status {
+	case int32(entity.Accepted):
+		userIdSend, userIdRecv, err = mysql.AcceptedAddFriend(req.Id)
+	case int32(entity.Rejected):
+		userIdSend, userIdRecv, err = mysql.RejectedAddFriend(req.Id)
+	default:
+		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: fmt.Sprintf("req.Status invalid, Status: %d", req.Status)}})
+		return
+	}
+	if err != nil {
+		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	id, err := mysql.CreateReplyAddFriend(req.Id, userIdRecv, userIdSend, now)
+	if err != nil {
+		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	//	mq message
+	err = redis.BroadcastMessage(userIdSend, map[string]interface{}{
+		"Id":         id,
+		"ParentId":   req.Id,
+		"UserIdSend": userIdRecv,
+		"UserIdRecv": userIdSend,
+		"CreateTime": now.Unix(),
+		"Status":     req.Status,
+	}, redis.ReplyAddFriend)
+	if err != nil {
+		logrus.Warnf("redis ReplyAddFriend failed, err: %+v", err)
+	}
+	c.JSON(200, ReplyAddFriendResp{Id: id, CreateTime: now.Unix()})
+}
+
+func DeleteFriend(c *gin.Context) {
+	var err error
+	userIdSend, err := strconv.ParseInt(c.Query("user_id_send"), 10, 64)
+	if err != nil {
+		c.JSON(200, DeleteFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+
+	userIdRecv, err := strconv.ParseInt(c.Query("user_id_recv"), 10, 64)
+	if err != nil {
+		c.JSON(200, DeleteFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+
+	err = mysql.DeleteFriend(userIdSend, userIdRecv)
+	if err != nil {
+		c.JSON(200, DeleteFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	c.JSON(200, DeleteFriendResp{})
 }
