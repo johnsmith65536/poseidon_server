@@ -31,6 +31,7 @@ func main() {
 	mysql.Init()
 	redis.Init()
 	const addr = ":8080"
+	const ginAddr = ":8081"
 
 	go func() {
 		for {
@@ -42,5 +43,6 @@ func main() {
 		}
 	}()
 
-	initRpcServer(addr)
+	go initRpcServer(addr)
+	initHttpServer(ginAddr)
 }

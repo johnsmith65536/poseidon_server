@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"poseidon/gin_handler"
 	"poseidon/handler"
 	"poseidon/thrift"
 )
@@ -153,4 +155,11 @@ func (fdi *ServiceImpl) FetchMessageStatus(ctx context.Context, req *thrift.Fetc
 	logrus.Info(req)
 	logrus.Info(resp)
 	return resp, err
+}
+
+func initHttpServer(addr string) {
+	r := gin.Default()
+	r.GET("/heart_beat/:user_id", gin_handler.HeartBeat)
+	r.POST("/message", gin_handler.SendMessage)
+	r.Run(addr)
 }
