@@ -29,7 +29,7 @@ func HeartBeat(c *gin.Context) {
 		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 		return
 	}
-	err = redis.AddUser(userId)
+	err = redis.RefreshUser(userId, c.GetHeader("access_token"))
 	if err != nil {
 		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 		return

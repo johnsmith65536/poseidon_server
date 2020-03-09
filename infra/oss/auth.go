@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"net/url"
+	"poseidon/utils"
 	"sort"
 	"strconv"
 	"time"
@@ -35,18 +35,7 @@ func hMAC(content string, key string) []byte {
 	return mac.Sum(nil)
 }
 
-func generateUUID() string {
-	var characterSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	var res string
-	for i := 1; i <= 16; i++ {
-		var x = rand.Intn(62)
-		res += characterSet[x : x+1]
-		if i%4 == 0 && i != 16 {
-			res += "-"
-		}
-	}
-	return res
-}
+
 
 func GetSTSInfo(userId int64) (*STSInfo, error) {
 	type param struct {
@@ -65,7 +54,7 @@ func GetSTSInfo(userId int64) (*STSInfo, error) {
 		{Key: "Format", Value: "JSON"},
 		{Key: "RoleSessionName", Value: sessionName},
 		{Key: "SignatureMethod", Value: "HMAC-SHA1"},
-		{Key: "SignatureNonce", Value: generateUUID()},
+		{Key: "SignatureNonce", Value: utils.GenerateUUID()},
 		{Key: "SignatureVersion", Value: "1.0"},
 		{Key: "Timestamp", Value: time.Now().UTC().Format("2006-01-02T15:04:05Z")},
 		{Key: "Version", Value: "2015-04-01"},
