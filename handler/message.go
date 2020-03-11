@@ -96,6 +96,8 @@ func SendMessage(c *gin.Context) {
 		}
 		broadcastMsg["ObjectETag"] = object.ETag
 		broadcastMsg["ObjectName"] = object.Name
+	case int32(entity.Vibration):
+		;
 	}
 	go redis.BroadcastMessage(req.IdRecv, broadcastMsg, redis.Chat)
 	c.JSON(200, SendMessageResp{Id: msg.Id, CreateTime: msg.CreateTime})

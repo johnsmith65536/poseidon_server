@@ -15,6 +15,7 @@ type Message struct {
 type ContentType int32
 
 const (
-	Text   ContentType = 0
+	Text       ContentType = 0
 	ObjectData ContentType = 1
+	Vibration  ContentType = 2
 )
