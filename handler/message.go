@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"encoding/base64"
 	"github.com/gin-gonic/gin"
 	"poseidon/entity"
 	"poseidon/infra/mysql"
 	"poseidon/infra/redis"
+	"poseidon/utils"
 	"strconv"
 	"time"
 )
@@ -65,7 +67,17 @@ func SendMessage(c *gin.Context) {
 		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 		return
 	}
-	msg, err := mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, req.Content, time.Now(), req.ContentType, req.MessageType, false)
+	byteContent, err := base64.StdEncoding.DecodeString(req.Content)
+	if err != nil {
+		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	rawContent, err := utils.UnGzip(byteContent)
+	if err != nil {
+		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+		return
+	}
+	msg, err := mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, byteContent, time.Now(), req.ContentType, req.MessageType, false)
 	if err != nil {
 		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 		return
@@ -75,7 +87,7 @@ func SendMessage(c *gin.Context) {
 		"UserIdSend":  msg.UserIdSend,
 		"UserIdRecv":  msg.UserIdRecv,
 		"GroupId":     msg.GroupId,
-		"Content":     msg.Content,
+		"Content":     string(rawContent),
 		"CreateTime":  msg.CreateTime,
 		"ContentType": msg.ContentType,
 		"MsgType":     msg.MsgType,
@@ -84,7 +96,7 @@ func SendMessage(c *gin.Context) {
 	case int32(entity.Text):
 		;
 	case int32(entity.ObjectData):
-		objId, err := strconv.ParseInt(req.Content, 10, 64)
+		objId, err := strconv.ParseInt(string(rawContent), 10, 64)
 		if err != nil {
 			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 			return
@@ -136,7 +148,12 @@ func SyncMessage(c *gin.Context) {
 	var objIds []int64
 	for _, message := range messages {
 		if message.ContentType == int32(entity.ObjectData) {
-			objId, err := strconv.ParseInt(message.Content, 10, 64)
+			content, err := utils.UnGzip(message.Content)
+			if err != nil {
+				c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
+				return
+			}
+			objId, err := strconv.ParseInt(string(content), 10, 64)
 			if err != nil {
 				c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 				return
@@ -215,5 +232,5 @@ func FetchMessageStatus(c *gin.Context) {
 		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
 		return
 	}
-	c.JSON(200, FetchMessageStatusResp{MessageIds:messageStatus,UserRelationRequestIds:relationStatus})
+	c.JSON(200, FetchMessageStatusResp{MessageIds: messageStatus, UserRelationRequestIds: relationStatus})
 }

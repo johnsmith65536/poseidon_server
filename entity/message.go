@@ -5,7 +5,7 @@ type Message struct {
 	UserIdSend  int64
 	UserIdRecv  int64
 	GroupId     int64
-	Content     string
+	Content     []byte
 	CreateTime  int64
 	ContentType int32
 	MsgType     int32

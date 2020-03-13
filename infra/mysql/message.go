@@ -5,8 +5,9 @@ import (
 	"time"
 )
 
-func WriteMessage(userIdSend, userIdRecv int64, groupId int64, content string, createTime time.Time, contentType int32, msgType int32, isRead bool) (*entity.Message, error) {
-	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: content, CreateTime: createTime.Unix(), ContentType: contentType, MsgType: msgType, IsRead: isRead}
+func WriteMessage(userIdSend, userIdRecv int64, groupId int64, byteContent []byte, createTime time.Time, contentType int32, msgType int32, isRead bool) (*entity.Message, error) {
+
+	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: byteContent, CreateTime: createTime.Unix(), ContentType: contentType, MsgType: msgType, IsRead: isRead}
 	return &message, db.Create(&message).Error
 }
 
