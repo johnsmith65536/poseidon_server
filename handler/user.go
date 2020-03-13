@@ -63,8 +63,8 @@ func SearchUser(c *gin.Context) {
 
 	data := c.Query("data")
 
-	var users []*User
-	var userIds []int64
+	users := make([]*User, 0)
+	userIds := make([]int64, 0)
 	userInfos, err := mysql.SearchUser(data)
 	if err != nil {
 		c.JSON(200, SearchUserResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
