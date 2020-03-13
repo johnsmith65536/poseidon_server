@@ -31,25 +31,16 @@ func Login(c *gin.Context) {
 	var err error
 	var req LoginReq
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, LoginResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	ok, err := mysql.Login(req.UserId, req.Password)
-	if err != nil {
-		c.JSON(200, LoginResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	if !ok {
 		c.JSON(200, LoginResp{Success: false})
 		return
 	}
 	accessToken := utils.GenerateToken(10)
 	err = redis.AddUser(req.UserId, accessToken)
-	if err != nil {
-		c.JSON(200, LoginResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, LoginResp{Success: true, AccessToken: accessToken})
 }
 
@@ -57,14 +48,8 @@ func Logout(c *gin.Context) {
 	var err error
 	var req LogoutReq
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, LogoutResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	err = redis.KickUser(req.UserId, req.AccessToken)
-	if err != nil {
-		c.JSON(200, LogoutResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, LogoutResp{})
 }

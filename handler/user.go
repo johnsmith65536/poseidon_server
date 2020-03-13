@@ -39,45 +39,30 @@ func CreateUser(c *gin.Context) {
 	var err error
 	var req CreateUserReq
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, CreateUserResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	userId := utils.GenerateId(4)
 	err = mysql.CreateUser(userId, req.Password, req.NickName, time.Now())
-	if err != nil {
-		c.JSON(200, CreateUserResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, CreateUserResp{UserId: userId})
 }
 
 func SearchUser(c *gin.Context) {
 	var err error
 	userId, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, SearchUserResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	data := c.Query("data")
 
 	users := make([]*User, 0)
 	userIds := make([]int64, 0)
 	userInfos, err := mysql.SearchUser(data)
-	if err != nil {
-		c.JSON(200, SearchUserResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	for _, userInfo := range userInfos {
 		userIds = append(userIds, userInfo.Id)
 	}
 	friendUserIds, err := mysql.GetRelation(userId, userIds)
-	if err != nil {
-		c.JSON(200, SearchUserResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	friendMap := make(map[int64]bool)
 	for _, friendUserId := range friendUserIds {
 		friendMap[friendUserId] = true

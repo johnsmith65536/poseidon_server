@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-type Status struct {
-	StatusCode    int
-	StatusMessage string
-}
 
 type HeartBeatResp struct {
 	Status
@@ -20,20 +16,11 @@ type HeartBeatResp struct {
 
 func HeartBeat(c *gin.Context) {
 	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	err = mysql.UpdateLastOnlineTime(userId, time.Now())
-	if err != nil {
-		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	err = redis.RefreshUser(userId, c.GetHeader("access_token"))
-	if err != nil {
-		c.JSON(200, HeartBeatResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, HeartBeatResp{})
 }
 

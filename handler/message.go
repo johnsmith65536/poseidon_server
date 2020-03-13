@@ -63,25 +63,13 @@ func SendMessage(c *gin.Context) {
 	var req SendMessageReq
 	var err error
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	byteContent, err := base64.StdEncoding.DecodeString(req.Content)
-	if err != nil {
-		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	rawContent, err := utils.UnGzip(byteContent)
-	if err != nil {
-		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	msg, err := mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, byteContent, time.Now(), req.ContentType, req.MessageType, false)
-	if err != nil {
-		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	broadcastMsg := map[string]interface{}{
 		"Id":          msg.Id,
 		"UserIdSend":  msg.UserIdSend,
@@ -97,15 +85,9 @@ func SendMessage(c *gin.Context) {
 		;
 	case int32(entity.ObjectData):
 		objId, err := strconv.ParseInt(string(rawContent), 10, 64)
-		if err != nil {
-			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-			return
-		}
+		PanicIfError(err)
 		object, err := mysql.GetObject(objId)
-		if err != nil {
-			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-			return
-		}
+		PanicIfError(err)
 		broadcastMsg["ObjectETag"] = object.ETag
 		broadcastMsg["ObjectName"] = object.Name
 	case int32(entity.Vibration):
@@ -118,59 +100,32 @@ func SendMessage(c *gin.Context) {
 func SyncMessage(c *gin.Context) {
 	var err error
 	userId, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	messageId, err := strconv.ParseInt(c.Query("message_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	userRelationId, err := strconv.ParseInt(c.Query("user_relation_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	messages, err := mysql.SyncMessage(userId, messageId)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	userRelations, err := mysql.SyncUserRelationRequest(userId, userRelationId)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	var objIds []int64
 	for _, message := range messages {
 		if message.ContentType == int32(entity.ObjectData) {
 			content, err := utils.UnGzip(message.Content)
-			if err != nil {
-				c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-				return
-			}
+			PanicIfError(err)
 			objId, err := strconv.ParseInt(string(content), 10, 64)
-			if err != nil {
-				c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-				return
-			}
+			PanicIfError(err)
 			objIds = append(objIds, objId)
 		}
 	}
 	objects, err := mysql.SyncObject(objIds)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	lastOnlineTime, err := mysql.GetLastOnlineTime(userId)
-	if err != nil {
-		c.JSON(200, SyncMessageResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, LastOnlineTime: lastOnlineTime})
 }
 
@@ -178,15 +133,9 @@ func UpdateMessageStatus(c *gin.Context) {
 	var req UpdateMessageStatusReq
 	var err error
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, UpdateMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	err = mysql.UpdateMessageStatus(req.MessageIds, req.UserRelationRequestIds)
-	if err != nil {
-		c.JSON(200, UpdateMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, UpdateMessageStatusResp{})
 }
 
@@ -195,42 +144,22 @@ func FetchMessageStatus(c *gin.Context) {
 	var messageIds []int64
 	var userRelationRequestIds []int64
 	messageIdsStr := c.QueryArray("message_ids")
-	if err != nil {
-		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
 	for _, messageIdStr := range messageIdsStr {
 		messageId, err := strconv.ParseInt(messageIdStr, 10, 64)
-		if err != nil {
-			c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-			return
-		}
+		PanicIfError(err)
 		messageIds = append(messageIds, messageId)
 	}
 
 	userRelationRequestIdsStr := c.QueryArray("user_relation_request_ids")
-	if err != nil {
-		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
 	for _, userRelationRequestIdStr := range userRelationRequestIdsStr {
 		userRelationRequestId, err := strconv.ParseInt(userRelationRequestIdStr, 10, 64)
-		if err != nil {
-			c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-			return
-		}
+		PanicIfError(err)
 		userRelationRequestIds = append(userRelationRequestIds, userRelationRequestId)
 	}
 
 	messageStatus, err := mysql.GetMessageStatus(messageIds)
-	if err != nil {
-		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	relationStatus, err := mysql.GetRelationStatus(userRelationRequestIds)
-	if err != nil {
-		c.JSON(200, FetchMessageStatusResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, FetchMessageStatusResp{MessageIds: messageStatus, UserRelationRequestIds: relationStatus})
 }

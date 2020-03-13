@@ -20,17 +20,9 @@ type GetSTSInfoResp struct {
 func GetSTSInfo(c *gin.Context) {
 	var err error
 	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, GetSTSInfoResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	info, err := oss.GetSTSInfo(userId)
-	if err != nil {
-		if err != nil {
-			c.JSON(200, GetSTSInfoResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-			return
-		}
-	}
+	PanicIfError(err)
 	c.JSON(200, GetSTSInfoResp{SecurityToken: info.SecurityToken, AccessKeyId: info.AccessKeyId, AccessKeySecret: info.AccessKeySecret})
 }

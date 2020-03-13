@@ -7,12 +7,13 @@ import (
 )
 
 func initHttpServer(addr string) {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Logger(), middleware.Recover())
 
 	r1 := r.Group("")
 	r1.POST("/login", handler.Login)
 
-	r2 := r.Group("",middleware.Auth)
+	r2 := r.Group("", middleware.Auth)
 
 	r2.GET("/heart_beat/:user_id", handler.HeartBeat)
 

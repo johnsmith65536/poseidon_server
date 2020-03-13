@@ -57,21 +57,12 @@ func FetchFriendList(c *gin.Context) {
 	var err error
 
 	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	if err != nil {
-		c.JSON(200, FetchFriendListResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	userIds, err := mysql.GetFriendsList(userId)
-	if err != nil {
-		c.JSON(200, FetchFriendListResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	onlineUserIds, err := redis.GetUsers()
-	if err != nil {
-		c.JSON(200, FetchFriendListResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	onlineUserIdMap := make(map[int64]bool)
 	for _, userId := range onlineUserIds {
 		onlineUserIdMap[userId] = true
@@ -92,35 +83,23 @@ func AddFriend(c *gin.Context) {
 	var err error
 	var req AddFriendReq
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	ok, err := mysql.CheckDuplicateRequest(req.UserIdSend, req.UserIdRecv)
-	if err != nil {
-		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	if !ok {
 		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 1, StatusMessage: "duplicate request"}})
 		return
 	}
 
 	ok, err = mysql.CheckIsFriend(req.UserIdSend, req.UserIdRecv)
-	if err != nil {
-		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	if !ok {
 		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 2, StatusMessage: "already friend"}})
 		return
 	}
 
 	userRelationRequest, err := mysql.CreateUserRelationRequest(req.UserIdSend, req.UserIdRecv)
-	if err != nil {
-		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	now := time.Now()
 	err = redis.BroadcastMessage(req.UserIdRecv, map[string]interface{}{
 		"Id":         userRelationRequest.Id,
@@ -138,10 +117,7 @@ func ReplyAddFriend(c *gin.Context) {
 	var err error
 	var req ReplyAddFriendReq
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	var userIdSend, userIdRecv int64
 	now := time.Now()
@@ -152,18 +128,12 @@ func ReplyAddFriend(c *gin.Context) {
 	case int32(entity.Rejected):
 		userIdSend, userIdRecv, err = mysql.RejectedAddFriend(req.Id)
 	default:
-		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: fmt.Sprintf("req.Status invalid, Status: %d", req.Status)}})
+		PanicIfError(fmt.Errorf("req.Status invalid, Status: %d", req.Status))
 		return
 	}
-	if err != nil {
-		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	id, err := mysql.CreateReplyAddFriend(req.Id, userIdRecv, userIdSend, now)
-	if err != nil {
-		c.JSON(200, ReplyAddFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	//	mq message
 	err = redis.BroadcastMessage(userIdSend, map[string]interface{}{
 		"Id":         id,
@@ -182,21 +152,12 @@ func ReplyAddFriend(c *gin.Context) {
 func DeleteFriend(c *gin.Context) {
 	var err error
 	userIdSend, err := strconv.ParseInt(c.Query("user_id_send"), 10, 64)
-	if err != nil {
-		c.JSON(200, DeleteFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	userIdRecv, err := strconv.ParseInt(c.Query("user_id_recv"), 10, 64)
-	if err != nil {
-		c.JSON(200, DeleteFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 
 	err = mysql.DeleteFriend(userIdSend, userIdRecv)
-	if err != nil {
-		c.JSON(200, DeleteFriendResp{Status: Status{StatusCode: 255, StatusMessage: err.Error()}})
-		return
-	}
+	PanicIfError(err)
 	c.JSON(200, DeleteFriendResp{})
 }
