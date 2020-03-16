@@ -60,10 +60,20 @@ type FetchMessageStatusResp struct {
 }
 
 func SendMessage(c *gin.Context) {
+
 	var req SendMessageReq
 	var err error
 	err = c.ShouldBindJSON(&req)
 	PanicIfError(err)
+
+
+	isFriend,err := mysql.CheckIsFriend(req.UserIdSend, req.IdRecv)
+	PanicIfError(err)
+	if !isFriend {
+		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 1, StatusMessage: "is not friend"}})
+		return
+	}
+
 	byteContent, err := base64.StdEncoding.DecodeString(req.Content)
 	PanicIfError(err)
 	rawContent, err := utils.UnGzip(byteContent)
@@ -91,6 +101,8 @@ func SendMessage(c *gin.Context) {
 		broadcastMsg["ObjectETag"] = object.ETag
 		broadcastMsg["ObjectName"] = object.Name
 	case int32(entity.Vibration):
+		;
+	case int32(entity.Image):
 		;
 	}
 	go redis.BroadcastMessage(req.IdRecv, broadcastMsg, redis.Chat)

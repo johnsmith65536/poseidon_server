@@ -91,9 +91,9 @@ func AddFriend(c *gin.Context) {
 		return
 	}
 
-	ok, err = mysql.CheckIsFriend(req.UserIdSend, req.UserIdRecv)
+	isFriend, err := mysql.CheckIsFriend(req.UserIdSend, req.UserIdRecv)
 	PanicIfError(err)
-	if !ok {
+	if isFriend {
 		c.JSON(200, AddFriendResp{Status: Status{StatusCode: 2, StatusMessage: "already friend"}})
 		return
 	}

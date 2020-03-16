@@ -26,5 +26,5 @@ func CheckIsFriend(userIdSend int64, userIdRecv int64) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return count == 0, nil
+	return count != 0, nil
 }

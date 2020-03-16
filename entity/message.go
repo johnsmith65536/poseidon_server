@@ -18,4 +18,5 @@ const (
 	Text       ContentType = 0
 	ObjectData ContentType = 1
 	Vibration  ContentType = 2
+	Image      ContentType = 3
 )
