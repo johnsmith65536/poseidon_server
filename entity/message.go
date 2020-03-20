@@ -20,3 +20,10 @@ const (
 	Vibration  ContentType = 2
 	Image      ContentType = 3
 )
+
+type MsgType int32
+
+const (
+	PrivateChat MsgType = 0
+	GroupChat   MsgType = 1
+)

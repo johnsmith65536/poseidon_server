@@ -36,6 +36,19 @@ func initHttpServer(addr string) {
 
 	r2.POST("/object", handler.CreateObject)
 
+	r2.POST("/group", handler.CreateGroup)
+	r2.GET("/group/search", handler.SearchGroup)
+	r2.GET("/group/list/:user_id", handler.FetchGroupList)
+	r2.GET("/group/last_read_msg_id/:user_id", handler.GetLastReadMsgId)
+	r2.PUT("/group/last_read_msg_id/:user_id", handler.UpdateLastReadMsgId)
+
+	r2.DELETE("/group/member", handler.DeleteMember)
+	r2.GET("/group/member/:group_id", handler.FetchMemberList)
+	r2.POST("/group/member/add", handler.AddGroup)
+	r2.POST("/group/member/add/reply", handler.ReplyAddGroup)
+	r2.POST("/group/member/invite", handler.InviteGroup)
+	r2.POST("/group/member/invite/reply", handler.ReplyInviteGroup)
+
 	r.GET("/ping", handler.Ping)
 
 	r.Run(addr)

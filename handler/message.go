@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/base64"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"poseidon/entity"
 	"poseidon/infra/mysql"
@@ -29,12 +30,14 @@ type SendMessageResp struct {
 	UserId         int64
 	MessageId      int64
 	UserRelationId int64
+	GroupUserId int64
 }*/
 
 type SyncMessageResp struct {
 	Messages       []*entity.Message
 	UserRelations  []*entity.UserRelationRequest
 	Objects        []*entity.Object
+	GroupUsers     []*entity.GroupUserRequest
 	LastOnlineTime int64
 	Status
 }
@@ -42,6 +45,7 @@ type SyncMessageResp struct {
 type UpdateMessageStatusReq struct {
 	MessageIds             map[int64]int32
 	UserRelationRequestIds map[int64]int32
+	GroupUserRequestIds    map[int64]int32
 }
 
 type UpdateMessageStatusResp struct {
@@ -49,13 +53,15 @@ type UpdateMessageStatusResp struct {
 }
 
 /*type FetchMessageStatusReq struct {
-	MessageIds []int64 `thrift:"MessageIds,1" db:"MessageIds" json:"MessageIds"`
-	UserRelationRequestIds []int64 `thrift:"UserRelationRequestIds,2" db:"UserRelationRequestIds" json:"UserRelationRequestIds"`
+	MessageIds []int64
+	UserRelationRequestIds []int64
+	GroupUserRequestIds []int64
 }*/
 
 type FetchMessageStatusResp struct {
 	MessageIds             map[int64]int32
 	UserRelationRequestIds map[int64]int32
+	GroupUserRequestIds    map[int64]int32
 	Status
 }
 
@@ -66,20 +72,37 @@ func SendMessage(c *gin.Context) {
 	err = c.ShouldBindJSON(&req)
 	PanicIfError(err)
 
-
-	isFriend,err := mysql.CheckIsFriend(req.UserIdSend, req.IdRecv)
-	PanicIfError(err)
-	if !isFriend {
-		c.JSON(200, SendMessageResp{Status: Status{StatusCode: 1, StatusMessage: "is not friend"}})
-		return
-	}
-
 	byteContent, err := base64.StdEncoding.DecodeString(req.Content)
 	PanicIfError(err)
 	rawContent, err := utils.UnGzip(byteContent)
 	PanicIfError(err)
-	msg, err := mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, byteContent, time.Now(), req.ContentType, req.MessageType, false)
-	PanicIfError(err)
+	var msg *entity.Message
+
+	switch req.MessageType {
+	case int32(entity.PrivateChat):
+		isFriend, err := mysql.CheckIsFriend(req.UserIdSend, req.IdRecv)
+		PanicIfError(err)
+		if !isFriend {
+			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 1, StatusMessage: "is not friend"}})
+			return
+		}
+		msg, err = mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, byteContent, time.Now(), req.ContentType, req.MessageType, false)
+		PanicIfError(err)
+	case int32(entity.GroupChat):
+		isGroupMember,err := mysql.CheckIsGroupMember(req.UserIdSend,req.IdRecv)
+		PanicIfError(err)
+		if !isGroupMember {
+			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 1, StatusMessage: "is not group member"}})
+			return
+		}
+		msg, err = mysql.WriteMessage(req.UserIdSend, 0, req.IdRecv, byteContent, time.Now(), req.ContentType, req.MessageType, false)
+		PanicIfError(err)
+		err = mysql.UpdateLastReadMsgId(req.UserIdSend, map[int64]int64{req.IdRecv: msg.Id})
+		PanicIfError(err)
+	default:
+		PanicIfError(errors.New("unknown msgType"))
+	}
+
 	broadcastMsg := map[string]interface{}{
 		"Id":          msg.Id,
 		"UserIdSend":  msg.UserIdSend,
@@ -105,7 +128,28 @@ func SendMessage(c *gin.Context) {
 	case int32(entity.Image):
 		;
 	}
-	go redis.BroadcastMessage(req.IdRecv, broadcastMsg, redis.Chat)
+
+	switch req.MessageType {
+	case int32(entity.PrivateChat):
+		err = redis.BroadcastMessage(req.IdRecv, broadcastMsg, redis.Chat)
+		PanicIfError(err)
+	case int32(entity.GroupChat):
+		members, err := mysql.GetMemberList(req.IdRecv)
+		PanicIfError(err)
+		onlineUsers, err := redis.GetUsers()
+		PanicIfError(err)
+		userIds := utils.Intersection(members, onlineUsers)
+		for userId := range userIds {
+			if userId == req.UserIdSend {
+				continue
+			}
+			err = redis.BroadcastMessage(userId, broadcastMsg, redis.Chat)
+			PanicIfError(err)
+		}
+	default:
+		PanicIfError(errors.New("unknown msgType"))
+	}
+
 	c.JSON(200, SendMessageResp{Id: msg.Id, CreateTime: msg.CreateTime})
 }
 
@@ -118,6 +162,9 @@ func SyncMessage(c *gin.Context) {
 	PanicIfError(err)
 
 	userRelationId, err := strconv.ParseInt(c.Query("user_relation_id"), 10, 64)
+	PanicIfError(err)
+
+	groupUserId, err := strconv.ParseInt(c.Query("group_user_id"), 10, 64)
 	PanicIfError(err)
 
 	messages, err := mysql.SyncMessage(userId, messageId)
@@ -136,9 +183,11 @@ func SyncMessage(c *gin.Context) {
 	}
 	objects, err := mysql.SyncObject(objIds)
 	PanicIfError(err)
+	groupUsers, err := mysql.SyncGroupUserRequest(userId, groupUserId)
+	PanicIfError(err)
 	lastOnlineTime, err := mysql.GetLastOnlineTime(userId)
 	PanicIfError(err)
-	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, LastOnlineTime: lastOnlineTime})
+	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, GroupUsers: groupUsers, LastOnlineTime: lastOnlineTime})
 }
 
 func UpdateMessageStatus(c *gin.Context) {
@@ -146,7 +195,7 @@ func UpdateMessageStatus(c *gin.Context) {
 	var err error
 	err = c.ShouldBindJSON(&req)
 	PanicIfError(err)
-	err = mysql.UpdateMessageStatus(req.MessageIds, req.UserRelationRequestIds)
+	err = mysql.UpdateMessageStatus(req.MessageIds, req.UserRelationRequestIds, req.GroupUserRequestIds)
 	PanicIfError(err)
 	c.JSON(200, UpdateMessageStatusResp{})
 }
@@ -155,6 +204,7 @@ func FetchMessageStatus(c *gin.Context) {
 	var err error
 	var messageIds []int64
 	var userRelationRequestIds []int64
+	var groupUserRequestIds []int64
 	messageIdsStr := c.QueryArray("message_ids")
 	for _, messageIdStr := range messageIdsStr {
 		messageId, err := strconv.ParseInt(messageIdStr, 10, 64)
@@ -169,9 +219,18 @@ func FetchMessageStatus(c *gin.Context) {
 		userRelationRequestIds = append(userRelationRequestIds, userRelationRequestId)
 	}
 
+	groupUserRequestIdsStr := c.QueryArray("group_user_request_ids")
+	for _, groupUserRequestIdStr := range groupUserRequestIdsStr {
+		groupUserRequestId, err := strconv.ParseInt(groupUserRequestIdStr, 10, 64)
+		PanicIfError(err)
+		groupUserRequestIds = append(groupUserRequestIds, groupUserRequestId)
+	}
+
 	messageStatus, err := mysql.GetMessageStatus(messageIds)
 	PanicIfError(err)
 	relationStatus, err := mysql.GetRelationStatus(userRelationRequestIds)
 	PanicIfError(err)
-	c.JSON(200, FetchMessageStatusResp{MessageIds: messageStatus, UserRelationRequestIds: relationStatus})
+	groupUserStatus, err := mysql.GetGroupUserStatus(groupUserRequestIds)
+	PanicIfError(err)
+	c.JSON(200, FetchMessageStatusResp{MessageIds: messageStatus, UserRelationRequestIds: relationStatus, GroupUserRequestIds: groupUserStatus})
 }

@@ -6,12 +6,11 @@ import (
 )
 
 func WriteMessage(userIdSend, userIdRecv int64, groupId int64, byteContent []byte, createTime time.Time, contentType int32, msgType int32, isRead bool) (*entity.Message, error) {
-
 	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: byteContent, CreateTime: createTime.Unix(), ContentType: contentType, MsgType: msgType, IsRead: isRead}
 	return &message, db.Create(&message).Error
 }
 
-func UpdateMessageStatus(messageIds map[int64]int32, userRelationRequestIds map[int64]int32) error {
+func UpdateMessageStatus(messageIds, userRelationRequestIds, groupUserRequestIds map[int64]int32, ) error {
 	for id, val := range messageIds {
 		var isRead bool
 		if val == 1 {
@@ -33,12 +32,25 @@ func UpdateMessageStatus(messageIds map[int64]int32, userRelationRequestIds map[
 			return err
 		}
 	}
+
+	for id, val := range groupUserRequestIds {
+		err := db.Model(&entity.GroupUserRequest{}).Where("id = ?", id).Update(map[string]interface{}{
+			"status": val,
+		}).Error
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func SyncMessage(userId, messageId int64) ([]*entity.Message, error) {
 	var messages []*entity.Message
-	ret := db.Model(&entity.Message{}).Where("(user_id_send = ? OR user_id_recv = ?) AND id > ?", userId, userId, messageId).Find(&messages)
+	groupIds, err := GetGroupList(userId)
+	if err != nil {
+		return nil, err
+	}
+	ret := db.Model(&entity.Message{}).Where("(user_id_send = ? OR user_id_recv = ? OR group_id IN (?)) AND id > ?", userId, userId, groupIds, messageId).Find(&messages)
 	if ret.Error != nil && !ret.RecordNotFound() {
 		return nil, ret.Error
 	}
