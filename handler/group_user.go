@@ -71,7 +71,7 @@ type ReplyInviteGroupResp struct {
 }*/
 
 type FetchGroupListResp struct {
-	GroupIds []int64
+	Groups []*entity.Group
 	Status
 }
 
@@ -188,7 +188,19 @@ func ReplyInviteGroup(c *gin.Context) {
 }
 
 func DeleteMember(c *gin.Context) {
-
+	var err error
+	var req DeleteMemberReq
+	err = c.ShouldBindJSON(&req)
+	PanicIfError(err)
+	groupInfo, err := mysql.GetGroupInfo(req.GroupId)
+	PanicIfError(err)
+	if groupInfo.Owner != req.Operator {
+		c.JSON(200, DeleteGroupResp{Status: Status{StatusCode: 1, StatusMessage: "only owner can operate"}})
+		return
+	}
+	err = mysql.DeleteGroupMember(req.GroupId, req.UserId)
+	PanicIfError(err)
+	c.JSON(200, DeleteMemberResp{})
 }
 
 func FetchGroupList(c *gin.Context) {
@@ -197,7 +209,9 @@ func FetchGroupList(c *gin.Context) {
 	PanicIfError(err)
 	groupIds, err := mysql.GetGroupList(userId)
 	PanicIfError(err)
-	c.JSON(200, FetchGroupListResp{GroupIds: groupIds})
+	groups, err := mysql.GetGroupInfos(groupIds)
+	PanicIfError(err)
+	c.JSON(200, FetchGroupListResp{Groups: groups})
 }
 
 func FetchMemberList(c *gin.Context) {

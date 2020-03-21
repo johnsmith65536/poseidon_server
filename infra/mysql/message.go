@@ -73,3 +73,7 @@ func GetMessageStatus(ids []int64) (map[int64]int32, error) {
 	}
 	return res, nil
 }
+
+func DeleteGroupMessage(groupId int64) error {
+	return db.Where("group_id = ?", groupId).Delete(entity.Message{}).Error
+}

@@ -55,3 +55,11 @@ func UpdateLastReadMsgId(userId int64, lastReadMsgId map[int64]int64) error {
 	}
 	return nil
 }
+
+func DeleteGroupUser(groupId int64) error {
+	return db.Where("group_id = ?", groupId).Delete(entity.GroupUser{}).Error
+}
+
+func DeleteGroupMember(groupId, userId int64) error {
+	return db.Where("group_id = ? AND user_id = ?", groupId, userId).Delete(entity.GroupUser{}).Error
+}

@@ -35,6 +35,15 @@ type SearchGroupResp struct {
 	Status
 }
 
+type DeleteGroupReq struct {
+	UserId  int64
+	GroupId int64
+}
+
+type DeleteGroupResp struct {
+	Status
+}
+
 func CreateGroup(c *gin.Context) {
 	var err error
 	var req CreateGroupReq
@@ -68,4 +77,21 @@ func SearchGroup(c *gin.Context) {
 		ret = append(ret, Group{Id: group.Id, Name: group.Name, CreateTime: group.CreateTime, IsMember: groupMap[group.Id]})
 	}
 	c.JSON(200, SearchGroupResp{Groups: ret})
+}
+
+func DeleteGroup(c *gin.Context) {
+	var err error
+	var req DeleteGroupReq
+	err = c.ShouldBindJSON(&req)
+	PanicIfError(err)
+	groupInfo, err := mysql.GetGroupInfo(req.GroupId)
+	PanicIfError(err)
+	if groupInfo.Owner != req.UserId {
+		c.JSON(200, DeleteGroupResp{Status: Status{StatusCode: 1, StatusMessage: "only owner can operate"}})
+		return
+	}
+
+	err = mysql.DeleteGroup(req.GroupId)
+	PanicIfError(err)
+	c.JSON(200, DeleteGroupResp{})
 }

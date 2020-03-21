@@ -43,6 +43,8 @@ func initHttpServer(addr string) {
 	r2.PUT("/group/last_read_msg_id/:user_id", handler.UpdateLastReadMsgId)
 
 	r2.DELETE("/group/member", handler.DeleteMember)
+	r2.DELETE("/group", handler.DeleteGroup)
+
 	r2.GET("/group/member/:group_id", handler.FetchMemberList)
 	r2.POST("/group/member/add", handler.AddGroup)
 	r2.POST("/group/member/add/reply", handler.ReplyAddGroup)
