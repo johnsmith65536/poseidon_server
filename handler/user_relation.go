@@ -53,6 +53,23 @@ type DeleteFriendResp struct {
 	Status
 }
 
+/*type GetFriendLastReadMsgIdReq struct {
+	UserId int64
+}*/
+
+type GetFriendLastReadMsgIdResp struct {
+	LastReadMsgId map[int64]int64
+	Status
+}
+
+type UpdateFriendLastReadMsgIdReq struct {
+	LastReadMsgId map[int64]int64
+}
+
+type UpdateFriendLastReadMsgIdResp struct {
+	Status
+}
+
 func FetchFriendList(c *gin.Context) {
 	var err error
 
@@ -160,4 +177,26 @@ func DeleteFriend(c *gin.Context) {
 	err = mysql.DeleteFriend(userIdSend, userIdRecv)
 	PanicIfError(err)
 	c.JSON(200, DeleteFriendResp{})
+}
+
+
+func GetFriendLastReadMsgId(c *gin.Context) {
+	var err error
+	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
+	PanicIfError(err)
+	lastReadMsgId, err := mysql.GetFriendLastReadMsgId(userId)
+	PanicIfError(err)
+	c.JSON(200, GetFriendLastReadMsgIdResp{LastReadMsgId: lastReadMsgId})
+}
+
+func UpdateFriendLastReadMsgId(c *gin.Context) {
+	var err error
+	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
+	PanicIfError(err)
+	var req UpdateFriendLastReadMsgIdReq
+	err = c.ShouldBindJSON(&req)
+	PanicIfError(err)
+	err = mysql.UpdateFriendLastReadMsgId(userId, req.LastReadMsgId)
+	PanicIfError(err)
+	c.JSON(200, UpdateFriendLastReadMsgIdResp{})
 }

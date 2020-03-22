@@ -9,7 +9,6 @@ type Message struct {
 	CreateTime  int64
 	ContentType int32
 	MsgType     int32
-	IsRead      bool
 }
 
 type ContentType int32

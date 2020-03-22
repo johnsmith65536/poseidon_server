@@ -33,7 +33,7 @@ func GetMemberList(groupId int64) ([]int64, error) {
 	return userIds, db.Model(&entity.GroupUser{}).Select("user_id").Where("group_id = ?", groupId).Pluck("user_id", &userIds).Error
 }
 
-func GetLastReadMsgId(userId int64) (map[int64]int64, error) {
+func GetGroupLastReadMsgId(userId int64) (map[int64]int64, error) {
 	ret := make(map[int64]int64)
 	var groupUsers []*entity.GroupUser
 	if err := db.Model(&entity.GroupUser{}).Select("group_id, last_read_msg_id").Where("user_id = ?", userId).Find(&groupUsers).Error; err != nil {
@@ -45,7 +45,7 @@ func GetLastReadMsgId(userId int64) (map[int64]int64, error) {
 	return ret, nil
 }
 
-func UpdateLastReadMsgId(userId int64, lastReadMsgId map[int64]int64) error {
+func UpdateGroupLastReadMsgId(userId int64, lastReadMsgId map[int64]int64) error {
 	for groupId, msgId := range lastReadMsgId {
 		if err := db.Model(&entity.GroupUser{}).Where("group_id = ? AND user_id = ?", groupId, userId).Update(map[string]interface{}{
 			"last_read_msg_id": msgId,

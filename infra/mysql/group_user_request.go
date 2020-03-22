@@ -85,3 +85,15 @@ func GetGroupUserStatus(ids []int64) (map[int64]int32, error) {
 	}
 	return ret, nil
 }
+
+func UpdateGroupUserRequestStatus(groupUserRequestIds map[int64]int32) error {
+	for id, val := range groupUserRequestIds {
+		err := db.Model(&entity.GroupUserRequest{}).Where("id = ?", id).Update(map[string]interface{}{
+			"status": val,
+		}).Error
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

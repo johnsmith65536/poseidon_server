@@ -42,29 +42,6 @@ type SyncMessageResp struct {
 	Status
 }
 
-type UpdateMessageStatusReq struct {
-	MessageIds             map[int64]int32
-	UserRelationRequestIds map[int64]int32
-	GroupUserRequestIds    map[int64]int32
-}
-
-type UpdateMessageStatusResp struct {
-	Status
-}
-
-/*type FetchMessageStatusReq struct {
-	MessageIds []int64
-	UserRelationRequestIds []int64
-	GroupUserRequestIds []int64
-}*/
-
-type FetchMessageStatusResp struct {
-	MessageIds             map[int64]int32
-	UserRelationRequestIds map[int64]int32
-	GroupUserRequestIds    map[int64]int32
-	Status
-}
-
 func SendMessage(c *gin.Context) {
 
 	var req SendMessageReq
@@ -86,22 +63,26 @@ func SendMessage(c *gin.Context) {
 			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 1, StatusMessage: "is not friend"}})
 			return
 		}
-		msg, err = mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, byteContent, time.Now(), req.ContentType, req.MessageType, false)
+		msg, err = mysql.WriteMessage(req.UserIdSend, req.IdRecv, 0, byteContent, time.Now(), req.ContentType, req.MessageType)
+		PanicIfError(err)
+		err = mysql.UpdateFriendLastReadMsgId(req.UserIdSend, map[int64]int64{req.IdRecv: msg.Id})
 		PanicIfError(err)
 	case int32(entity.GroupChat):
-		isGroupMember,err := mysql.CheckIsGroupMember(req.UserIdSend,req.IdRecv)
+		isGroupMember, err := mysql.CheckIsGroupMember(req.UserIdSend, req.IdRecv)
 		PanicIfError(err)
 		if !isGroupMember {
 			c.JSON(200, SendMessageResp{Status: Status{StatusCode: 1, StatusMessage: "is not group member"}})
 			return
 		}
-		msg, err = mysql.WriteMessage(req.UserIdSend, 0, req.IdRecv, byteContent, time.Now(), req.ContentType, req.MessageType, false)
+		msg, err = mysql.WriteMessage(req.UserIdSend, 0, req.IdRecv, byteContent, time.Now(), req.ContentType, req.MessageType)
 		PanicIfError(err)
-		err = mysql.UpdateLastReadMsgId(req.UserIdSend, map[int64]int64{req.IdRecv: msg.Id})
+		err = mysql.UpdateGroupLastReadMsgId(req.UserIdSend, map[int64]int64{req.IdRecv: msg.Id})
 		PanicIfError(err)
 	default:
 		PanicIfError(errors.New("unknown msgType"))
 	}
+
+
 
 	broadcastMsg := map[string]interface{}{
 		"Id":          msg.Id,
@@ -190,47 +171,3 @@ func SyncMessage(c *gin.Context) {
 	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, GroupUsers: groupUsers, LastOnlineTime: lastOnlineTime})
 }
 
-func UpdateMessageStatus(c *gin.Context) {
-	var req UpdateMessageStatusReq
-	var err error
-	err = c.ShouldBindJSON(&req)
-	PanicIfError(err)
-	err = mysql.UpdateMessageStatus(req.MessageIds, req.UserRelationRequestIds, req.GroupUserRequestIds)
-	PanicIfError(err)
-	c.JSON(200, UpdateMessageStatusResp{})
-}
-
-func FetchMessageStatus(c *gin.Context) {
-	var err error
-	var messageIds []int64
-	var userRelationRequestIds []int64
-	var groupUserRequestIds []int64
-	messageIdsStr := c.QueryArray("message_ids")
-	for _, messageIdStr := range messageIdsStr {
-		messageId, err := strconv.ParseInt(messageIdStr, 10, 64)
-		PanicIfError(err)
-		messageIds = append(messageIds, messageId)
-	}
-
-	userRelationRequestIdsStr := c.QueryArray("user_relation_request_ids")
-	for _, userRelationRequestIdStr := range userRelationRequestIdsStr {
-		userRelationRequestId, err := strconv.ParseInt(userRelationRequestIdStr, 10, 64)
-		PanicIfError(err)
-		userRelationRequestIds = append(userRelationRequestIds, userRelationRequestId)
-	}
-
-	groupUserRequestIdsStr := c.QueryArray("group_user_request_ids")
-	for _, groupUserRequestIdStr := range groupUserRequestIdsStr {
-		groupUserRequestId, err := strconv.ParseInt(groupUserRequestIdStr, 10, 64)
-		PanicIfError(err)
-		groupUserRequestIds = append(groupUserRequestIds, groupUserRequestId)
-	}
-
-	messageStatus, err := mysql.GetMessageStatus(messageIds)
-	PanicIfError(err)
-	relationStatus, err := mysql.GetRelationStatus(userRelationRequestIds)
-	PanicIfError(err)
-	groupUserStatus, err := mysql.GetGroupUserStatus(groupUserRequestIds)
-	PanicIfError(err)
-	c.JSON(200, FetchMessageStatusResp{MessageIds: messageStatus, UserRelationRequestIds: relationStatus, GroupUserRequestIds: groupUserStatus})
-}

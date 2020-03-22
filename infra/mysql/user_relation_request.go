@@ -84,3 +84,15 @@ func GetRelationStatus(ids []int64) (map[int64]int32, error) {
 	}
 	return ret, nil
 }
+
+func UpdateUserRelationRequestStatus(userRelationRequestIds map[int64]int32) error {
+	for id, val := range userRelationRequestIds {
+		err := db.Model(&entity.UserRelationRequest{}).Where("id = ?", id).Update(map[string]interface{}{
+			"status": val,
+		}).Error
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

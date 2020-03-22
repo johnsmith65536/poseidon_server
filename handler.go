@@ -19,8 +19,9 @@ func initHttpServer(addr string) {
 
 	r2.POST("/message", handler.SendMessage)
 	r2.GET("/message", handler.SyncMessage)
-	r2.PUT("/message/status", handler.UpdateMessageStatus)
-	r2.GET("/message/status", handler.FetchMessageStatus)
+
+	r2.GET("/request/status", handler.FetchRequestStatus)
+	r2.PUT("/request/status", handler.UpdateRequestStatus)
 
 	r2.POST("/user", handler.CreateUser)
 	r2.GET("/user/search", handler.SearchUser)
@@ -32,6 +33,9 @@ func initHttpServer(addr string) {
 	r2.POST("/friend/reply", handler.ReplyAddFriend)
 	r2.DELETE("/friend", handler.DeleteFriend)
 
+	r2.GET("/last_read_msg_id/friend/:user_id", handler.GetFriendLastReadMsgId)
+	r2.PUT("/last_read_msg_id/friend/:user_id", handler.UpdateFriendLastReadMsgId)
+
 	r2.GET("/sts_info/:user_id", handler.GetSTSInfo)
 
 	r2.POST("/object", handler.CreateObject)
@@ -39,8 +43,8 @@ func initHttpServer(addr string) {
 	r2.POST("/group", handler.CreateGroup)
 	r2.GET("/group/search", handler.SearchGroup)
 	r2.GET("/group/list/:user_id", handler.FetchGroupList)
-	r2.GET("/group/last_read_msg_id/:user_id", handler.GetLastReadMsgId)
-	r2.PUT("/group/last_read_msg_id/:user_id", handler.UpdateLastReadMsgId)
+	r2.GET("/last_read_msg_id/group/:user_id", handler.GetGroupLastReadMsgId)
+	r2.PUT("/last_read_msg_id/group/:user_id", handler.UpdateGroupLastReadMsgId)
 
 	r2.DELETE("/group/member", handler.DeleteMember)
 	r2.DELETE("/group", handler.DeleteGroup)

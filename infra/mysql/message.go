@@ -5,43 +5,9 @@ import (
 	"time"
 )
 
-func WriteMessage(userIdSend, userIdRecv int64, groupId int64, byteContent []byte, createTime time.Time, contentType int32, msgType int32, isRead bool) (*entity.Message, error) {
-	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: byteContent, CreateTime: createTime.Unix(), ContentType: contentType, MsgType: msgType, IsRead: isRead}
+func WriteMessage(userIdSend, userIdRecv int64, groupId int64, byteContent []byte, createTime time.Time, contentType int32, msgType int32) (*entity.Message, error) {
+	message := entity.Message{UserIdSend: userIdSend, UserIdRecv: userIdRecv, GroupId: groupId, Content: byteContent, CreateTime: createTime.Unix(), ContentType: contentType, MsgType: msgType}
 	return &message, db.Create(&message).Error
-}
-
-func UpdateMessageStatus(messageIds, userRelationRequestIds, groupUserRequestIds map[int64]int32, ) error {
-	for id, val := range messageIds {
-		var isRead bool
-		if val == 1 {
-			isRead = true
-		}
-		err := db.Model(&entity.Message{}).Where("id = ?", id).Update(map[string]interface{}{
-			"is_read": isRead,
-		}).Error
-		if err != nil {
-			return err
-		}
-	}
-
-	for id, val := range userRelationRequestIds {
-		err := db.Model(&entity.UserRelationRequest{}).Where("id = ?", id).Update(map[string]interface{}{
-			"status": val,
-		}).Error
-		if err != nil {
-			return err
-		}
-	}
-
-	for id, val := range groupUserRequestIds {
-		err := db.Model(&entity.GroupUserRequest{}).Where("id = ?", id).Update(map[string]interface{}{
-			"status": val,
-		}).Error
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func SyncMessage(userId, messageId int64) ([]*entity.Message, error) {
@@ -57,6 +23,7 @@ func SyncMessage(userId, messageId int64) ([]*entity.Message, error) {
 	return messages, nil
 }
 
+/*
 func GetMessageStatus(ids []int64) (map[int64]int32, error) {
 	var messages []entity.Message
 	res := make(map[int64]int32)
@@ -72,7 +39,7 @@ func GetMessageStatus(ids []int64) (map[int64]int32, error) {
 		}
 	}
 	return res, nil
-}
+}*/
 
 func DeleteGroupMessage(groupId int64) error {
 	return db.Where("group_id = ?", groupId).Delete(entity.Message{}).Error

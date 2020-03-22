@@ -85,20 +85,20 @@ type FetchMemberListResp struct {
 	Status
 }
 
-/*type GetLastReadMsgIdReq struct {
+/*type GetGroupLastReadMsgIdReq struct {
 	UserId int64
 }*/
 
-type GetLastReadMsgIdResp struct {
+type GetGroupLastReadMsgIdResp struct {
 	LastReadMsgId map[int64]int64
 	Status
 }
 
-type UpdateLastReadMsgIdReq struct {
+type UpdateGroupLastReadMsgIdReq struct {
 	LastReadMsgId map[int64]int64
 }
 
-type UpdateLastReadMsgIdResp struct {
+type UpdateGroupLastReadMsgIdResp struct {
 	Status
 }
 
@@ -240,23 +240,23 @@ func FetchMemberList(c *gin.Context) {
 	c.JSON(200, FetchMemberListResp{OnlineUserIds: onlineFriendUserIds, OfflineUserIds: offlineFriendUserIds})
 }
 
-func GetLastReadMsgId(c *gin.Context) {
+func GetGroupLastReadMsgId(c *gin.Context) {
 	var err error
 	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
 	PanicIfError(err)
-	lastReadMsgId, err := mysql.GetLastReadMsgId(userId)
+	lastReadMsgId, err := mysql.GetGroupLastReadMsgId(userId)
 	PanicIfError(err)
-	c.JSON(200, GetLastReadMsgIdResp{LastReadMsgId: lastReadMsgId})
+	c.JSON(200, GetGroupLastReadMsgIdResp{LastReadMsgId: lastReadMsgId})
 }
 
-func UpdateLastReadMsgId(c *gin.Context) {
+func UpdateGroupLastReadMsgId(c *gin.Context) {
 	var err error
 	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
 	PanicIfError(err)
-	var req UpdateLastReadMsgIdReq
+	var req UpdateGroupLastReadMsgIdReq
 	err = c.ShouldBindJSON(&req)
 	PanicIfError(err)
-	err = mysql.UpdateLastReadMsgId(userId, req.LastReadMsgId)
+	err = mysql.UpdateGroupLastReadMsgId(userId, req.LastReadMsgId)
 	PanicIfError(err)
-	c.JSON(200, UpdateLastReadMsgIdResp{})
+	c.JSON(200, UpdateGroupLastReadMsgIdResp{})
 }

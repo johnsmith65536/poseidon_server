@@ -28,3 +28,26 @@ func CheckIsFriend(userIdSend int64, userIdRecv int64) (bool, error) {
 	}
 	return count != 0, nil
 }
+
+func GetFriendLastReadMsgId(userId int64) (map[int64]int64, error) {
+	ret := make(map[int64]int64)
+	var userRelations []*entity.UserRelation
+	if err := db.Model(&entity.UserRelation{}).Select("friend_user_id, last_read_msg_id").Where("user_id = ?", userId).Find(&userRelations).Error; err != nil {
+		return nil, err
+	}
+	for _, userRelation := range userRelations {
+		ret[userRelation.FriendUserId] = userRelation.LastReadMsgId
+	}
+	return ret, nil
+}
+
+func UpdateFriendLastReadMsgId(userId int64, lastReadMsgId map[int64]int64) error {
+	for friendUserId, msgId := range lastReadMsgId {
+		if err := db.Model(&entity.UserRelation{}).Where("user_id = ? AND friend_user_id = ?", userId, friendUserId).Update(map[string]interface{}{
+			"last_read_msg_id": msgId,
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
