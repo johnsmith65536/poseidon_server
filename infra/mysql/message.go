@@ -23,24 +23,54 @@ func SyncMessage(userId, messageId int64) ([]*entity.Message, error) {
 	return messages, nil
 }
 
-/*
-func GetMessageStatus(ids []int64) (map[int64]int32, error) {
-	var messages []entity.Message
-	res := make(map[int64]int32)
-	err := db.Model(&entity.Message{}).Select("id, is_read").Where("id in (?)", ids).Find(&messages).Error
-	if err != nil {
-		return nil, err
-	}
-	for _, message := range messages {
-		if message.IsRead {
-			res[message.Id] = 1
-		} else {
-			res[message.Id] = 0
-		}
-	}
-	return res, nil
-}*/
-
 func DeleteGroupMessage(groupId int64) error {
 	return db.Where("group_id = ?", groupId).Delete(entity.Message{}).Error
+}
+
+func FetchFriendHistoryMessage(userIdAlice, userIdBob, localCount int64) ([]*entity.Message, error) {
+	var count int64
+	messages := make([]*entity.Message, 0)
+	sql := "(user_id_send = ? AND user_id_recv = ?) OR (user_id_send = ? AND user_id_recv = ?)"
+	ret := db.Model(&entity.Message{}).Where(sql, userIdAlice, userIdBob, userIdBob, userIdAlice).Count(&count)
+	if ret.Error != nil {
+		return nil, ret.Error
+	}
+	if localCount == count {
+		return messages, nil
+	}
+	ret = db.Model(&entity.Message{}).Where(sql, userIdAlice, userIdBob, userIdBob, userIdAlice).Find(&messages)
+	if ret.Error != nil && !ret.RecordNotFound() {
+		return nil, ret.Error
+	}
+	return messages, nil
+}
+
+func FetchGroupHistoryMessage(groupId, localCount int64) ([]*entity.Message, error) {
+	var count int64
+	messages := make([]*entity.Message, 0)
+	sql := "group_id = ?"
+	ret := db.Model(&entity.Message{}).Where(sql, groupId).Count(&count)
+	if ret.Error != nil {
+		return nil, ret.Error
+	}
+	if localCount == count {
+		return messages, nil
+	}
+	ret = db.Model(&entity.Message{}).Where(sql, groupId).Find(&messages)
+	if ret.Error != nil && !ret.RecordNotFound() {
+		return nil, ret.Error
+	}
+	return messages, nil
+}
+
+func GetGroupLastMsgId(groupId int64) (int64, error) {
+	var message entity.Message
+	ret := db.Model(&entity.Message{}).Select("max(id) as id").Where("group_id = ?", groupId).First(&message)
+	if ret.Error != nil && !ret.RecordNotFound() {
+		return 0, ret.Error
+	}
+	if ret.RecordNotFound() {
+		return -1, nil
+	}
+	return message.Id, nil
 }

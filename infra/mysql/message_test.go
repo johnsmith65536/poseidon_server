@@ -15,19 +15,11 @@ func TestSyncMessage(t *testing.T) {
 	t.Log(msgs)
 }
 
-func TestUpdateMessageStatus(t *testing.T) {
+func TestGetGroupLastMsgId(t *testing.T) {
 	Init()
-	err := UpdateMessageStatus(map[int64]int32{1: 1}, map[int64]int32{})
+	id, err := GetGroupLastMsgId(9208)
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestGetMessageStatus(t *testing.T) {
-	Init()
-	res, err := GetMessageStatus([]int64{1,2,298,300})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(res)
+	t.Log(id)
 }

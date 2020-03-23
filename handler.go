@@ -19,6 +19,8 @@ func initHttpServer(addr string) {
 
 	r2.POST("/message", handler.SendMessage)
 	r2.GET("/message", handler.SyncMessage)
+	r2.GET("/message/history/friend", handler.FetchFriendHistoryMessage)
+	r2.GET("/message/history/group", handler.FetchGroupHistoryMessage)
 
 	r2.GET("/request/status", handler.FetchRequestStatus)
 	r2.PUT("/request/status", handler.UpdateRequestStatus)

@@ -42,6 +42,29 @@ type SyncMessageResp struct {
 	Status
 }
 
+/*type FetchFriendHistoryMessageReq struct {
+	UserIdAlice         int64
+	UserIdBob	int64
+	LocalCount int64
+}*/
+
+type FetchFriendHistoryMessageResp struct {
+	Messages []*entity.Message
+	Objects  []*entity.Object
+	Status
+}
+
+/*type FetchGroupHistoryMessageReq struct {
+	GroupId int64
+	LocalCount int64
+}*/
+
+type FetchGroupHistoryMessageResp struct {
+	Messages []*entity.Message
+	Objects  []*entity.Object
+	Status
+}
+
 func SendMessage(c *gin.Context) {
 
 	var req SendMessageReq
@@ -81,8 +104,6 @@ func SendMessage(c *gin.Context) {
 	default:
 		PanicIfError(errors.New("unknown msgType"))
 	}
-
-
 
 	broadcastMsg := map[string]interface{}{
 		"Id":          msg.Id,
@@ -171,3 +192,55 @@ func SyncMessage(c *gin.Context) {
 	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, GroupUsers: groupUsers, LastOnlineTime: lastOnlineTime})
 }
 
+func FetchFriendHistoryMessage(c *gin.Context) {
+	var err error
+	userIdAlice, err := strconv.ParseInt(c.Query("user_id_alice"), 10, 64)
+	PanicIfError(err)
+
+	userIdBob, err := strconv.ParseInt(c.Query("user_id_bob"), 10, 64)
+	PanicIfError(err)
+
+	localCount, err := strconv.ParseInt(c.Query("local_count"), 10, 64)
+	PanicIfError(err)
+
+	messages, err := mysql.FetchFriendHistoryMessage(userIdAlice, userIdBob, localCount)
+	PanicIfError(err)
+	var objIds []int64
+	for _, message := range messages {
+		if message.ContentType == int32(entity.ObjectData) {
+			content, err := utils.UnGzip(message.Content)
+			PanicIfError(err)
+			objId, err := strconv.ParseInt(string(content), 10, 64)
+			PanicIfError(err)
+			objIds = append(objIds, objId)
+		}
+	}
+	objects, err := mysql.SyncObject(objIds)
+	PanicIfError(err)
+	c.JSON(200, FetchFriendHistoryMessageResp{Messages: messages, Objects: objects})
+}
+
+func FetchGroupHistoryMessage(c *gin.Context) {
+	var err error
+	groupId, err := strconv.ParseInt(c.Query("group_id"), 10, 64)
+	PanicIfError(err)
+
+	localCount, err := strconv.ParseInt(c.Query("local_count"), 10, 64)
+	PanicIfError(err)
+
+	messages, err := mysql.FetchGroupHistoryMessage(groupId, localCount)
+	PanicIfError(err)
+	var objIds []int64
+	for _, message := range messages {
+		if message.ContentType == int32(entity.ObjectData) {
+			content, err := utils.UnGzip(message.Content)
+			PanicIfError(err)
+			objId, err := strconv.ParseInt(string(content), 10, 64)
+			PanicIfError(err)
+			objIds = append(objIds, objId)
+		}
+	}
+	objects, err := mysql.SyncObject(objIds)
+	PanicIfError(err)
+	c.JSON(200, FetchGroupHistoryMessageResp{Messages: messages, Objects: objects})
+}

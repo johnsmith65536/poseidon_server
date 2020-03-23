@@ -33,7 +33,11 @@ func AcceptedAddGroup(id int64) (userIdSend, groupId int64, err error) {
 		return 0, 0, err
 	}
 	now := time.Now()
-	if err := tx.Create(&entity.GroupUser{GroupId: req.GroupId, UserId: req.UserIdSend, CreateTime: now.Unix(), LastReadMsgId: -1}).Error; err != nil {
+	lastMsgId, err := GetGroupLastMsgId(req.GroupId)
+	if err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Create(&entity.GroupUser{GroupId: req.GroupId, UserId: req.UserIdSend, CreateTime: now.Unix(), LastReadMsgId: lastMsgId}).Error; err != nil {
 		return 0, 0, err
 	}
 	return req.UserIdSend, req.GroupId, tx.Commit().Error
