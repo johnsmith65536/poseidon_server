@@ -74,3 +74,15 @@ func GetGroupLastMsgId(groupId int64) (int64, error) {
 	}
 	return message.Id, nil
 }
+
+func GetFriendLastMsgId(userId, friendUserId int64) (int64, error) {
+	var message entity.Message
+	ret := db.Model(&entity.Message{}).Select("max(id) as id").Where("(user_id_send = ? AND user_id_recv = ?) OR (user_id_send = ? AND user_id_recv = ?)", userId, friendUserId, friendUserId, userId).First(&message)
+	if ret.Error != nil && !ret.RecordNotFound() {
+		return 0, ret.Error
+	}
+	if ret.RecordNotFound() {
+		return -1, nil
+	}
+	return message.Id, nil
+}

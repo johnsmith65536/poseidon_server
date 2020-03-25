@@ -22,11 +22,15 @@ func AcceptedAddFriend(id int64) (userIdSend int64, userIdRecv int64, err error)
 	if err := tx.Model(&req).Select("user_id_send, user_id_recv").First(&req).Error; err != nil {
 		return 0, 0, err
 	}
-	now := time.Now()
-	if err := tx.Create(&entity.UserRelation{UserId: req.UserIdSend, FriendUserId: req.UserIdRecv, CreateTime: now.Unix()}).Error; err != nil {
+	maxMsgId, err := GetFriendLastMsgId(req.UserIdSend, req.UserIdRecv)
+	if err != nil {
 		return 0, 0, err
 	}
-	if err := tx.Create(&entity.UserRelation{UserId: req.UserIdRecv, FriendUserId: req.UserIdSend, CreateTime: now.Unix()}).Error; err != nil {
+	now := time.Now()
+	if err := tx.Create(&entity.UserRelation{UserId: req.UserIdSend, FriendUserId: req.UserIdRecv, CreateTime: now.Unix(), LastReadMsgId: maxMsgId}).Error; err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Create(&entity.UserRelation{UserId: req.UserIdRecv, FriendUserId: req.UserIdSend, CreateTime: now.Unix(), LastReadMsgId: maxMsgId}).Error; err != nil {
 		return 0, 0, err
 	}
 	return req.UserIdSend, req.UserIdRecv, tx.Commit().Error
