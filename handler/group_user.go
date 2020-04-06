@@ -12,7 +12,6 @@ import (
 )
 
 type DeleteMemberReq struct {
-	Operator int64
 	GroupId  int64
 	UserId   int64
 }
@@ -192,12 +191,6 @@ func DeleteMember(c *gin.Context) {
 	var req DeleteMemberReq
 	err = c.ShouldBindJSON(&req)
 	PanicIfError(err)
-	groupInfo, err := mysql.GetGroupInfo(req.GroupId)
-	PanicIfError(err)
-	if groupInfo.Owner != req.Operator {
-		c.JSON(200, DeleteGroupResp{Status: Status{StatusCode: 1, StatusMessage: "only owner can operate"}})
-		return
-	}
 	err = mysql.DeleteGroupMember(req.GroupId, req.UserId)
 	PanicIfError(err)
 	c.JSON(200, DeleteMemberResp{})

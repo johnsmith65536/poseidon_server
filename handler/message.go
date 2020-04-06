@@ -38,7 +38,6 @@ type SyncMessageResp struct {
 	UserRelations  []*entity.UserRelationRequest
 	Objects        []*entity.Object
 	GroupUsers     []*entity.GroupUserRequest
-	LastOnlineTime int64
 	Status
 }
 
@@ -187,9 +186,7 @@ func SyncMessage(c *gin.Context) {
 	PanicIfError(err)
 	groupUsers, err := mysql.SyncGroupUserRequest(userId, groupUserId)
 	PanicIfError(err)
-	lastOnlineTime, err := mysql.GetLastOnlineTime(userId)
-	PanicIfError(err)
-	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, GroupUsers: groupUsers, LastOnlineTime: lastOnlineTime})
+	c.JSON(200, SyncMessageResp{Messages: messages, UserRelations: userRelations, Objects: objects, GroupUsers: groupUsers})
 }
 
 func FetchFriendHistoryMessage(c *gin.Context) {

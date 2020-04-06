@@ -8,8 +8,8 @@ import (
 )
 
 const OnlineUser = "poseidon_online_user_"
-const AccessToken = "access_token_"
-const OnlineUserExpiration = 10 * time.Second
+const AccessToken = "poseidon_access_token_"
+const OnlineUserExpiration = 15 * time.Second
 
 func AddUser(userId int64, accessToken string) error {
 	var err error
