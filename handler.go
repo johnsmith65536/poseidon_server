@@ -12,6 +12,7 @@ func initHttpServer(addr string) {
 
 	r1 := r.Group("")
 	r1.POST("/login", handler.Login)
+	r1.POST("/user", handler.CreateUser)
 
 	r2 := r.Group("", middleware.Auth)
 
@@ -25,8 +26,8 @@ func initHttpServer(addr string) {
 	r2.GET("/request/status", handler.FetchRequestStatus)
 	r2.PUT("/request/status", handler.UpdateRequestStatus)
 
-	r2.POST("/user", handler.CreateUser)
 	r2.GET("/user/search", handler.SearchUser)
+	r2.GET("/user/info/:user_id", handler.GetUserInfo)
 
 	r2.POST("/logout", handler.Logout)
 
@@ -47,6 +48,7 @@ func initHttpServer(addr string) {
 	r2.GET("/group/list/:user_id", handler.FetchGroupList)
 	r2.GET("/last_read_msg_id/group/:user_id", handler.GetGroupLastReadMsgId)
 	r2.PUT("/last_read_msg_id/group/:user_id", handler.UpdateGroupLastReadMsgId)
+	r2.GET("/group/info/:group_id", handler.GetGroupInfo)
 
 	r2.DELETE("/group/member", handler.DeleteMember)
 	r2.DELETE("/group", handler.DeleteGroup)
@@ -55,7 +57,7 @@ func initHttpServer(addr string) {
 	r2.POST("/group/member/add", handler.AddGroup)
 	r2.POST("/group/member/add/reply", handler.ReplyAddGroup)
 	r2.POST("/group/member/invite", handler.InviteGroup)
-	r2.POST("/group/member/invite/reply", handler.ReplyInviteGroup)
+	r2.GET("/group/invite/friend", handler.InviteGroupFriendList)
 
 	r.GET("/ping", handler.Ping)
 

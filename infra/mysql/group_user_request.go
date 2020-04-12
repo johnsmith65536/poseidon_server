@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"github.com/go-sql-driver/mysql"
 	"poseidon/entity"
 	"time"
 )
@@ -100,4 +101,25 @@ func UpdateGroupUserRequestStatus(groupUserRequestIds map[int64]int32) error {
 		}
 	}
 	return nil
+}
+
+func InviteGroup(groupId int64, userIds []int64) error {
+	tx := db.Begin()
+	defer tx.Rollback()
+	now := time.Now()
+	lastMsgId, err := GetGroupLastMsgId(groupId)
+	if err != nil {
+		return err
+	}
+	for _, userId := range userIds {
+		err := tx.Create(&entity.GroupUser{GroupId: groupId, UserId: userId, CreateTime: now.Unix(), LastReadMsgId: lastMsgId}).Error
+		if err != nil {
+			if err.(*mysql.MySQLError).Number == 1062 {
+				continue
+			} else {
+				return err
+			}
+		}
+	}
+	return tx.Commit().Error
 }

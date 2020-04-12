@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"poseidon/entity"
 	"poseidon/infra/mysql"
 	"poseidon/utils"
 	"strconv"
@@ -26,12 +27,21 @@ type CreateUserResp struct {
 }
 
 /*type SearchUserReq struct {
-	UserId int64 `thrift:"UserId,1" db:"UserId" json:"UserId"`
-	Data string `thrift:"Data,2" db:"Data" json:"Data"`
+	UserId int64
+	Data string
 }*/
 
 type SearchUserResp struct {
 	Users []*User
+	Status
+}
+
+/*type GetUserInfoReq struct {
+	UserId int64
+}*/
+
+type GetUserInfoResp struct {
+	User *entity.User
 	Status
 }
 
@@ -68,7 +78,18 @@ func SearchUser(c *gin.Context) {
 		friendMap[friendUserId] = true
 	}
 	for _, userInfo := range userInfos {
-		users = append(users, &User{Id: userInfo.Id, NickName: userInfo.NickName, LastOnlineTime: userInfo.LastOnlineTime.Unix(), IsFriend: friendMap[userInfo.Id]})
+		users = append(users, &User{Id: userInfo.Id, NickName: userInfo.NickName, LastOnlineTime: userInfo.LastOnlineTime, IsFriend: friendMap[userInfo.Id]})
 	}
 	c.JSON(200, SearchUserResp{Users: users})
+}
+
+func GetUserInfo(c *gin.Context) {
+	var err error
+	userId, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
+	PanicIfError(err)
+
+	res, err := mysql.GetUserNickNames([]int64{userId})
+	PanicIfError(err)
+
+	c.JSON(200, GetUserInfoResp{User: &entity.User{Id: userId, NickName: res[userId]}})
 }

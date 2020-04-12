@@ -39,8 +39,8 @@ type ReplyAddFriendResp struct {
 }*/
 
 type FetchFriendListResp struct {
-	OnlineUserIds  []int64
-	OfflineUserIds []int64
+	OnlineUsers  []*entity.User
+	OfflineUsers []*entity.User
 	Status
 }
 
@@ -93,7 +93,21 @@ func FetchFriendList(c *gin.Context) {
 			offlineFriendUserIds = append(offlineFriendUserIds, userId)
 		}
 	}
-	c.JSON(200, FetchFriendListResp{OnlineUserIds: onlineFriendUserIds, OfflineUserIds: offlineFriendUserIds})
+	var res map[int64]string
+	onlineUsers, offlineUsers := make([]*entity.User, 0), make([]*entity.User, 0)
+	res, err = mysql.GetUserNickNames(onlineFriendUserIds)
+	PanicIfError(err)
+	for _, userId := range onlineFriendUserIds {
+		onlineUsers = append(onlineUsers, &entity.User{Id: userId, NickName: res[userId]})
+	}
+
+	res, err = mysql.GetUserNickNames(offlineFriendUserIds)
+	PanicIfError(err)
+	for _, userId := range offlineFriendUserIds {
+		offlineUsers = append(offlineUsers, &entity.User{Id: userId, NickName: res[userId]})
+	}
+
+	c.JSON(200, FetchFriendListResp{OnlineUsers: onlineUsers, OfflineUsers: offlineUsers})
 }
 
 func AddFriend(c *gin.Context) {
@@ -178,7 +192,6 @@ func DeleteFriend(c *gin.Context) {
 	PanicIfError(err)
 	c.JSON(200, DeleteFriendResp{})
 }
-
 
 func GetFriendLastReadMsgId(c *gin.Context) {
 	var err error

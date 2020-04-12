@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
+	"poseidon/entity"
 	"poseidon/infra/mysql"
 	"strconv"
 )
@@ -41,6 +43,16 @@ type DeleteGroupReq struct {
 }
 
 type DeleteGroupResp struct {
+	Status
+}
+
+/*
+type GetGroupInfoReq struct {
+	GroupId int64
+}*/
+
+type GetGroupInfoResp struct {
+	Group *entity.Group
 	Status
 }
 
@@ -94,4 +106,18 @@ func DeleteGroup(c *gin.Context) {
 	err = mysql.DeleteGroup(req.GroupId)
 	PanicIfError(err)
 	c.JSON(200, DeleteGroupResp{})
+}
+
+func GetGroupInfo(c *gin.Context) {
+	var err error
+	groupId, err := strconv.ParseInt(c.Param("group_id"), 10, 64)
+	PanicIfError(err)
+
+	res, err := mysql.GetGroupInfos([]int64{groupId})
+	PanicIfError(err)
+
+	if len(res) != 1 {
+		PanicIfError(errors.New("length not equal to 1"))
+	}
+	c.JSON(200, GetGroupInfoResp{Group: &entity.Group{Id: groupId, Name: res[0].Name, Owner: res[0].Owner, CreateTime: res[0].CreateTime}})
 }

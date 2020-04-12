@@ -12,8 +12,8 @@ import (
 )
 
 type DeleteMemberReq struct {
-	GroupId  int64
-	UserId   int64
+	GroupId int64
+	UserId  int64
 }
 
 type DeleteMemberResp struct {
@@ -65,6 +65,15 @@ type ReplyInviteGroupResp struct {
 	Status
 }
 
+type InviteGroupReq struct {
+	GroupId int64
+	UserIds  []int64
+}
+
+type InviteGroupResp struct {
+	Status
+}
+
 /*type FetchGroupListReq struct {
 	UserId int64
 }*/
@@ -79,8 +88,8 @@ type FetchGroupListResp struct {
 }*/
 
 type FetchMemberListResp struct {
-	OnlineUserIds  []int64
-	OfflineUserIds []int64
+	OnlineUsers  []*entity.User
+	OfflineUsers []*entity.User
 	Status
 }
 
@@ -98,6 +107,16 @@ type UpdateGroupLastReadMsgIdReq struct {
 }
 
 type UpdateGroupLastReadMsgIdResp struct {
+	Status
+}
+
+/*type InviteGroupFriendListReq struct {
+	UserId  int64
+	GroupId int64
+}*/
+
+type InviteGroupFriendListResp struct {
+	NotInGroupUsers []*entity.User
 	Status
 }
 
@@ -180,10 +199,13 @@ func ReplyAddGroup(c *gin.Context) {
 	c.JSON(200, ReplyAddGroupResp{Id: id, CreateTime: now.Unix()})
 }
 func InviteGroup(c *gin.Context) {
-
-}
-func ReplyInviteGroup(c *gin.Context) {
-
+	var err error
+	var req InviteGroupReq
+	err = c.ShouldBindJSON(&req)
+	PanicIfError(err)
+	err = mysql.InviteGroup(req.GroupId, req.UserIds)
+	PanicIfError(err)
+	c.JSON(200, InviteGroupResp{})
 }
 
 func DeleteMember(c *gin.Context) {
@@ -230,7 +252,22 @@ func FetchMemberList(c *gin.Context) {
 			offlineFriendUserIds = append(offlineFriendUserIds, userId)
 		}
 	}
-	c.JSON(200, FetchMemberListResp{OnlineUserIds: onlineFriendUserIds, OfflineUserIds: offlineFriendUserIds})
+
+	var res map[int64]string
+	onlineUsers, offlineUsers := make([]*entity.User, 0), make([]*entity.User, 0)
+	res, err = mysql.GetUserNickNames(onlineFriendUserIds)
+	PanicIfError(err)
+	for _, userId := range onlineFriendUserIds {
+		onlineUsers = append(onlineUsers, &entity.User{Id: userId, NickName: res[userId]})
+	}
+
+	res, err = mysql.GetUserNickNames(offlineFriendUserIds)
+	PanicIfError(err)
+	for _, userId := range offlineFriendUserIds {
+		offlineUsers = append(offlineUsers, &entity.User{Id: userId, NickName: res[userId]})
+	}
+
+	c.JSON(200, FetchMemberListResp{OnlineUsers: onlineUsers, OfflineUsers: offlineUsers})
 }
 
 func GetGroupLastReadMsgId(c *gin.Context) {
@@ -252,4 +289,26 @@ func UpdateGroupLastReadMsgId(c *gin.Context) {
 	err = mysql.UpdateGroupLastReadMsgId(userId, req.LastReadMsgId)
 	PanicIfError(err)
 	c.JSON(200, UpdateGroupLastReadMsgIdResp{})
+}
+
+func InviteGroupFriendList(c *gin.Context) {
+	var err error
+	notInGroupUsers := make([]*entity.User, 0)
+	userId, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
+	PanicIfError(err)
+	groupId, err := strconv.ParseInt(c.Query("group_id"), 10, 64)
+	PanicIfError(err)
+	userIds, err := mysql.GetFriendsList(userId)
+	PanicIfError(err)
+
+	nickName, err := mysql.GetUserNickNames(userIds)
+	PanicIfError(err)
+	for _, friendId := range userIds {
+		ret, err := mysql.CheckIsGroupMember(friendId, groupId)
+		PanicIfError(err)
+		if !ret {
+			notInGroupUsers = append(notInGroupUsers, &entity.User{Id: friendId, NickName: nickName[friendId]})
+		}
+	}
+	c.JSON(200, InviteGroupFriendListResp{NotInGroupUsers: notInGroupUsers})
 }

@@ -15,6 +15,7 @@ type LoginReq struct {
 type LoginResp struct {
 	Success     bool
 	AccessToken string
+	NickName    string
 	Status
 }
 
@@ -32,7 +33,7 @@ func Login(c *gin.Context) {
 	var req LoginReq
 	err = c.ShouldBindJSON(&req)
 	PanicIfError(err)
-	ok, err := mysql.Login(req.UserId, req.Password)
+	ok, nickName, err := mysql.Login(req.UserId, req.Password)
 	PanicIfError(err)
 	if !ok {
 		c.JSON(200, LoginResp{Success: false})
@@ -41,7 +42,7 @@ func Login(c *gin.Context) {
 	accessToken := utils.GenerateToken(10)
 	err = redis.AddUser(req.UserId, accessToken)
 	PanicIfError(err)
-	c.JSON(200, LoginResp{Success: true, AccessToken: accessToken})
+	c.JSON(200, LoginResp{Success: true, AccessToken: accessToken, NickName: nickName})
 }
 
 func Logout(c *gin.Context) {

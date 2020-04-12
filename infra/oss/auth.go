@@ -35,8 +35,6 @@ func hMAC(content string, key string) []byte {
 	return mac.Sum(nil)
 }
 
-
-
 func GetSTSInfo(userId int64) (*STSInfo, error) {
 	type param struct {
 		Key   string
