@@ -8,17 +8,20 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"poseidon/entity"
+	"poseidon/infra/mysql"
 	"poseidon/utils"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
+var initOne sync.Once
+var accessKey *entity.AccessKey
+
 const (
-	AccessKeyId     = "LTAI4Fg2xDMnaeK4mvBu8gwa"
-	AccessKeySecret = "8FIMffgGhCVw81LUX1h6ffrWHAPLSn"
 	DurationSeconds = 3600
-	RoleArn         = "acs:ram::1387747617960990:role/poseidon-data-sts-rw"
 )
 
 type STSInfo struct {
@@ -36,6 +39,13 @@ func hMAC(content string, key string) []byte {
 }
 
 func GetSTSInfo(userId int64) (*STSInfo, error) {
+	initOne.Do(func() {
+		var err error
+		accessKey, err = mysql.LoadSecretKey()
+		if err != nil {
+			panic(err)
+		}
+	})
 	type param struct {
 		Key   string
 		Value string
@@ -45,9 +55,9 @@ func GetSTSInfo(userId int64) (*STSInfo, error) {
 	}
 
 	sessionName := strconv.FormatInt(userId, 10)
-	params := []param{{Key: "AccessKeyId", Value: AccessKeyId},
+	params := []param{{Key: "AccessKeyId", Value: accessKey.AccessKeyId},
 		{Key: "DurationSeconds", Value: strconv.FormatInt(DurationSeconds, 10)},
-		{Key: "RoleArn", Value: RoleArn},
+		{Key: "RoleArn", Value: accessKey.RoleArn},
 		{Key: "Action", Value: "AssumeRole"},
 		{Key: "Format", Value: "JSON"},
 		{Key: "RoleSessionName", Value: sessionName},
@@ -68,7 +78,7 @@ func GetSTSInfo(userId int64) (*STSInfo, error) {
 		}
 	}
 	var stringToSign = "GET" + "&" + url.QueryEscape("/") + "&" + url.QueryEscape(canonicalizedQueryString)
-	params = append(params, param{Key: "Signature", Value: base64.StdEncoding.EncodeToString(hMAC(stringToSign, AccessKeySecret+"&"))})
+	params = append(params, param{Key: "Signature", Value: base64.StdEncoding.EncodeToString(hMAC(stringToSign, accessKey.AccessKeySecret+"&"))})
 	httpParams := url.Values{}
 	Url, err := url.Parse("https://sts.aliyuncs.com")
 	if err != nil {
